@@ -41,6 +41,4 @@ for p, ids in zip(phases, idsets):
             continue
         for _,row in idf.iterrows():
             writelabel(iid,row,p)
-        i+=1
-        if i>10: break
 
