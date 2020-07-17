@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import ast
 from shutil import copyfile
-
+import tqdm
 phases = ['train', 'val']
 for f in ['images', 'labels']:
     if not os.path.isdir(f): os.mkdir(f)
@@ -18,9 +18,9 @@ all_id = list(set([i[:-4] for i in os.listdir('all_images')]))
 idsets = train_test_split(all_id, test_size=0.1, random_state=7)
     
 
-for p, ids in zip(phases, tqdm(idsets)):
+for p, ids in zip(phases, idsets):
     i=0
-    for iid in ids:
+    for iid in tqdm(ids):
         imagefile1 = os.path.join('all_images',iid+'.jpg')
         imagefile2 = os.path.join('images',p,iid+'.jpg')
         copyfile(imagefile1,imagefile2)
@@ -29,7 +29,7 @@ for p, ids in zip(phases, tqdm(idsets)):
             open(fn, 'w').close()
             continue
         idf = df.loc[iid]
-        if isinstance(idf, pd.Series):  df.loc[[iid]]
+        if isinstance(idf, pd.Series):  idf = df.loc[[iid]]
         with open(fn,'w') as fw:
             for _,row in idf.iterrows():
                 wi,hi, bbox = row.width, row.height, row.bbox
