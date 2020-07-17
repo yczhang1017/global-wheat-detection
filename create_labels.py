@@ -11,24 +11,26 @@ for f in ['images', 'labels']:
         if not os.path.isdir(os.path.join(f,p)): os.mkdir(os.path.join(f,p))
 
 image_folder = 'images'
-dfa = pd.read_csv('train.csv',index_col=0)
-box_count = dfa.groupby(level=0).count().width
+df = pd.read_csv('train.csv',index_col=0)
+box_count = df.groupby(level=0).count().width
 #all_id = list(box_count.index)
 all_id = list(set([i[:-4] for i in os.listdir('all_images')]))
 idsets = train_test_split(all_id, test_size=0.1, random_state=7)
     
 
-for p, ids in zip(phases, idsets):
+for p, ids in zip(phases, tqdm(idsets)):
     i=0
     for iid in ids:
         imagefile1 = os.path.join('all_images',iid+'.jpg')
         imagefile2 = os.path.join('images',p,iid+'.jpg')
         copyfile(imagefile1,imagefile2)
-        
-        if iid not in df.index: continue
-        idf = dfa.loc[iid]
-        if isinstance(idf, pd.Series):  dfa.loc[[iid]]
-        with open(os.path.join('labels',p,iid+'.txt'),'w') as fw:
+        fn = os.path.join('labels',p,iid+'.txt')
+        if iid not in df.index: 
+            open(fn, 'w').close()
+            continue
+        idf = df.loc[iid]
+        if isinstance(idf, pd.Series):  df.loc[[iid]]
+        with open(fn,'w') as fw:
             for _,row in idf.iterrows():
                 wi,hi, bbox = row.width, row.height, row.bbox
                 xb,yb,wb,hb =ast.literal_eval(bbox)      
