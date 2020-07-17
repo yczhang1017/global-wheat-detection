@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import ast
 from shutil import copyfile
-import tqdm
+from tqdm.auto import tqdm
 phases = ['train', 'val']
 for f in ['images', 'labels']:
     if not os.path.isdir(f): os.mkdir(f)
