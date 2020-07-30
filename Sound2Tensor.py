@@ -16,7 +16,7 @@ def sound2tensor(filename,ndim=128, sr = 44100):
     sample = audio.set_channels(1).set_frame_rate(sr).get_array_of_samples()
     x = np.array(sample).astype(np.float32)/2**14
     S = librosa.feature.melspectrogram(x,sr,n_mels=ndim,**mel_parameters)
-    Sdb = librosa.power_to_db(S).astype(np.float).transpose()
+    Sdb = librosa.power_to_db(S).astype(np.float32).transpose()
     return torch.tensor(Sdb)
 
 root = sys.argv[1] if len(sys.argv)>1 else './'
