@@ -1,4 +1,5 @@
 import librosa
+from pydub import AudioSegment
 import os 
 import sys
 import numpy as np
@@ -9,9 +10,12 @@ mel_parameters = {
     "fmax": 14000
 }    
 
-def sound2tensor(filename,ndim=128):
-    x, sr = librosa.load(filename)
-    S = librosa.feature.melspectrogram(x,sr=sr,n_mels=ndim,**mel_parameters)
+
+def sound2tensor(filename,ndim=128, sr = 44100):
+    audio = AudioSegment.from_mp3(filename)
+    sample = audio.set_channels(1).set_frame_rate(sr).get_array_of_samples()
+    x = np.array(sample).astype(np.float32)/2**14
+    S = librosa.feature.melspectrogram(x,sr,n_mels=ndim,**mel_parameters)
     Sdb = librosa.power_to_db(S).astype(np.float).transpose()
     return torch.tensor(Sdb)
 
@@ -22,11 +26,17 @@ if not os.path.exists(save):
     os.mkdir(save)
 for t in tqdm(os.listdir('train_audio')):
     for f in os.listdir(os.path.join('train_audio',t)):
-        x = sound2tensor(os.path.join('train_audio',t,f))
+        try:
+            x = sound2tensor(os.path.join('train_audio',t,f))
+        except: 
+            print(f'{f} cannot be decoded')
         torch.save(x, os.path.join(save, f[:-3]+'pt'))
 
 for f in os.listdir('example_test_audio'):
-    x = sound2tensor(os.path.join('example_test_audio',f))
+    try:
+        x = sound2tensor(os.path.join('example_test_audio',f))
+    except: 
+        print(f'{f} cannot be decoded')
     torch.save(x, os.path.join(save, f[:-3]+'pt'))
 
 
