@@ -18,7 +18,8 @@ def sound2tensor(filename,ndim=128):
 root = sys.argv[1] if len(sys.argv)>1 else './'
 os.chdir(root)
 save = 'tensors'
-os.mkdir(save)
+if not os.path.exists(save):
+    os.mkdir(save)
 for t in tqdm(os.listdir('train_audio')):
     for f in os.listdir(os.path.join('train_audio',t)):
         x = sound2tensor(os.path.join('train_audio',t,f))
