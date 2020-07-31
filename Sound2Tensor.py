@@ -36,8 +36,8 @@ root = sys.argv[1] if len(sys.argv)>1 else './'
 os.chdir(root)
 save = 'tensors'
 df = pd.read_csv('train.csv')
-df1 = [df['file_type'] == 'wav']
-df2 = [df['file_type'] != 'wav']
+df1 = df[df['file_type'] == 'wav']
+df2 = df[df['file_type'] != 'wav']
 df2tensor(df1,'wav')
 #df2tensor(df2,'mp3')
 
