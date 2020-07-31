@@ -77,16 +77,15 @@ def mask(x, mask_value):
 
     
 class TrainData1(Dataset):
-    def __init__(self,df,mask=True, root='/kaggle/input/birdsong-recognition/train_audio/'):
+    def __init__(self,df,mask=True):
         self.df = df
-        self.root = root
         self.mask = mask
     def __len__(self):
         return len(self.df)
     def __getitem__(self, idx, mlen = 256):
         row = self.df.loc[idx]
         code = row['ebird_code']
-        filename = os.path.join(self.root,'tensors', row['filename'][:-3]+'pt')
+        filename = os.path.join('tensors', row['filename'][:-3]+'pt')
         code = row['ebird_code']
         tag = code2tag[code]
         Sdb = torch.load(filename,ndim)
