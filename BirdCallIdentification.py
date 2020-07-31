@@ -86,7 +86,7 @@ class TrainData1(Dataset):
     def __getitem__(self, idx, mlen = 256):
         row = self.df.loc[idx]
         code = row['ebird_code']
-        filename = os.path.join(self.root,'tensor', row['filename'][:-3]+'pt')
+        filename = os.path.join(self.root,'tensors', row['filename'][:-3]+'pt')
         code = row['ebird_code']
         tag = code2tag[code]
         Sdb = torch.load(filename,ndim)
