@@ -25,7 +25,7 @@ def sound2tensor(filename, form='mp3', ndim=128, sr = 44100):
     return torch.tensor(Sdb)
 
 def df2tensor(df,form='mp3'):
-    for i,r in tqdm(df.iterrows(), total = len(df1)):
+    for i,r in tqdm(df.iterrows(), total = len(df)):
         t = r['ebird_code']
         f = r['filename'] 
         try:
