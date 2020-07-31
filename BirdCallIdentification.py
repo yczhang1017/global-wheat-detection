@@ -158,8 +158,5 @@ for e in range(epoch):
         sum_tot += len(t)
         sum_correct += (pred == t).sum().item()
         if i%10==0: 
-            print(f'{i},{(time()-t0)/(i+1)}s,\
-                  {sum_loss1/sum_tot:1.4f},\
-                  {sum_loss2/sum_tot:1.4f},\
-                  {sum_correct/sum_tot*100:1.4f}')
+            print(f'{i}\t{(time()-t0)/(i+1)}s\t{sum_loss1/sum_tot:1.4f}\t{sum_loss2/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
     torch.save(model.state_dict(), os.join(save,'weight_{}.pt'.format(e)))
