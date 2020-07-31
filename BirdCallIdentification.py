@@ -102,7 +102,7 @@ class TrainData1(Dataset):
             #Sdb = torch.cat((START,Sdb), dim=0)
             l = Sdb.shape[0]
             x = torch.linspace(0,l-1,l).view((l,1))
-            ps = [torch.sin(2*np.pi*x/2* 1.5**i) for i in range(npos)]
+            ps = [torch.sin(2*np.pi*x/2*1.8*i) for i in range(npos)]
             Sdb = torch.cat([Sdb]+ps, dim = 1)
         return Sdb, tag
 
@@ -144,7 +144,7 @@ for e in range(epoch):
         h0,h1 = h.split([1,x.shape[0]-1])
         score = ext(h0.squeeze(0))
         loss1 = celoss(score, t)
-        loss2 = mseloss(h1, y)*2
+        loss2 = mseloss(h1, y)
         loss = loss1 + loss2
         loss.backward()
         pred = h[0,:,:].argmax(1)
