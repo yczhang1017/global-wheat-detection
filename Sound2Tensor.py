@@ -25,10 +25,13 @@ def sound2tensor(filename, form='mp3', ndim=128, sr = 44100):
     return torch.tensor(Sdb)
 
 def df2tensor(df,form='mp3'):
-    for r in tqdm(df.iterrows(), total = len(df1)):
+    for i,r in tqdm(df.iterrows(), total = len(df1)):
         t = r['ebird_code']
         f = r['filename'] 
-        x = sound2tensor(os.path.join('train_audio',t,f), form)
+        try:
+            x = sound2tensor(os.path.join('train_audio',t,f), form)
+        except:
+            print(f'{f} cannot be decoded')
         torch.save(x, os.path.join(save, f[:-3]+'pt'))
             
 
@@ -37,8 +40,10 @@ os.chdir(root)
 save = 'tensors'
 df = pd.read_csv('train.csv')
 df1 = df[df['file_type'] == 'wav']
-df2 = df[df['file_type'] != 'wav']
+df2 = df[df['file_type'] == 'aac']
+df3 = df[np.logical_or(df['file_type'] == 'mp3', df['file_type'] == 'mp4')]
 df2tensor(df1,'wav')
+df2tensor(df2,'aac')
 #df2tensor(df2,'mp3')
 
 """    
