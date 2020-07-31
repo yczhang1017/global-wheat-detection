@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
-
+from time import time
 #import ast
 #import librosa
 #import librosa.display
@@ -129,7 +129,7 @@ celoss = torch.nn.CrossEntropyLoss().cuda()
 mseloss = torch.nn.MSELoss().cuda()
 epoch = 10
 save ='bert'
-if not os.path.exist(save):
+if not os.path.exists(save):
     os.mkdir(save)
 
 for e in range(epoch):
@@ -137,8 +137,9 @@ for e in range(epoch):
     sum_loss2 = 0
     sum_tot = 0
     sum_correct = 0
+    t0 = time()
     print(f'{e}/{epoch}')
-    for i,(x, t) in tqdm(enumerate(data_loader), total=len(data_loader)):
+    for i,(x, t) in enumerate(data_loader), total=len(data_loader):
         model.train()
         x = x.to(device)
         xo = x.clone().detach()
@@ -157,6 +158,8 @@ for e in range(epoch):
         pred = y.argmax(1)
         sum_tot += len(t)
         sum_correct += (pred == t).sum().item()
-        if i%100==0: print(f'{i},{sum_loss1/sum_tot},{sum_loss2/sum_tot},{sum_correct/sum_tot*100}')
+        tpb = (time()-t0)/i
+        if i%100==0: 
+            print('{},{}s,{1.4f},{1.4f},{1.4f}'.format(i, tpb, sum_loss1/sum_tot,sum_loss2/sum_tot,sum_correct/sum_tot*100)
 
     torch.save(model.state_dict(), os.join(save,f'weight_{e}.pt'))
