@@ -60,6 +60,7 @@ for idx, row in df_train.iterrows():
 ntag = len(tag2code)
 ndim = 128
 npos = 8
+dm = ndim+npos
 batch_size = 4
 
 mel_parameters = {
@@ -102,7 +103,7 @@ class TrainData1(Dataset):
             l = Sdb.shape[0]
             x = torch.linspace(0,l-1,l).view((l,1))
             ps = [torch.sin(2*np.pi*x/2* 1.5**i) for i in range(npos)]
-            Sdb = torch.cat([Sdb]+ps), dim = 1)
+            Sdb = torch.cat([Sdb]+ps, dim = 1)
         return Sdb, tag
 
 
@@ -113,11 +114,10 @@ def pad_collate(batch, pad = -4):
 
 dataset = TrainData1(df_train)
 data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
-dmodel = ndim+npos
-encoder_layer = nn.TransformerEncoderLayer(dmodel, 8, 512)
 
+encoder_layer = nn.TransformerEncoderLayer(dm, 8, 512)
 model = nn.TransformerEncoder(encoder_layer, num_layers=4)
-ext = nn.Linear(ndim+npos,ntag)
+ext = nn.Linear(dm,ntag)
 model.to(device)
 ext.to(device)
 
