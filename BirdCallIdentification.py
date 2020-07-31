@@ -157,7 +157,9 @@ for e in range(epoch):
         pred = y.argmax(1)
         sum_tot += len(t)
         sum_correct += (pred == t).sum().item()
-        tpb = (time()-t0)/i
         if i%100==0: 
-            print('{},{}s,{1.4f},{1.4f},{1.4f}'.format(i, tpb, sum_loss1/sum_tot,sum_loss2/sum_tot,sum_correct/sum_tot*100))
+            print(f''''{i},{(time()-t0)/(i+1)}s,
+                  {sum_loss1/sum_tot:1.4f},
+                  {sum_loss2/sum_tot:1.4f},
+                  {sum_correct/sum_tot*100:1.4f}''')
     torch.save(model.state_dict(), os.join(save,'weight_{}.pt'.format(e)))
