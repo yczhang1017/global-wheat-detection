@@ -3,7 +3,6 @@ import sys
 import random
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
 
 import torch 
 import torch.nn as nn
@@ -139,7 +138,7 @@ for e in range(epoch):
     sum_correct = 0
     t0 = time()
     print(f'{e}/{epoch}')
-    for i,(x, t) in enumerate(data_loader), total=len(data_loader):
+    for i,(x, t) in enumerate(data_loader):
         model.train()
         x = x.to(device)
         xo = x.clone().detach()
@@ -161,5 +160,4 @@ for e in range(epoch):
         tpb = (time()-t0)/i
         if i%100==0: 
             print('{},{}s,{1.4f},{1.4f},{1.4f}'.format(i, tpb, sum_loss1/sum_tot,sum_loss2/sum_tot,sum_correct/sum_tot*100)
-
-    torch.save(model.state_dict(), os.join(save,f'weight_{e}.pt'))
+    torch.save(model.state_dict(), os.join(save,'weight_{}.pt'.format(e)))
