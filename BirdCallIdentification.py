@@ -16,11 +16,8 @@ from torch.nn.utils.rnn import pad_sequence
 
 root = sys.argv[1] if len(sys.argv)>1 else './'
 os.chdir(root)
-
 df_train = pd.read_csv('train.csv')
 df_test = pd.read_csv('test.csv')
-print(df_train.columns)
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def set_seed(seed = 42):
@@ -60,21 +57,20 @@ for idx, row in df_train.iterrows():
 ntag = len(tag2code)
 ndim = 128
 npos = 8
+mlen = 1024
+batch_size = 8
 dm = ndim+npos
-batch_size = 4
+
 
 mel_parameters = {
     "fmin": 100,
     "fmax": 10000
 }    
 
-
 def mask(x, mask_value):
     mask = (torch.rand((x.size(0),1,1))>0.9).expand(x.shape)
     x[mask] = mask_value
     return x
-
-
     
 class TrainData1(Dataset):
     def __init__(self,df,mask=True):
@@ -82,7 +78,7 @@ class TrainData1(Dataset):
         self.mask = mask
     def __len__(self):
         return len(self.df)
-    def __getitem__(self, idx, mlen = 512):
+    def __getitem__(self, idx, mlen = mlen):
         row = self.df.loc[idx]
         code = row['ebird_code']
         filename = os.path.join('tensors', row['filename'][:-3]+'pt')
@@ -132,6 +128,9 @@ optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
 celoss = torch.nn.CrossEntropyLoss().cuda()
 mseloss = torch.nn.MSELoss().cuda()
 epoch = 10
+save ='bert'
+if not os.path.exist(save):
+    os.mkdir(save)
 
 for e in range(epoch):
     sum_loss1 = 0
@@ -158,6 +157,6 @@ for e in range(epoch):
         pred = y.argmax(1)
         sum_tot += len(t)
         sum_correct += (pred == t).sum().item()
-        if i%1==0: print(f'{i},{sum_loss1/sum_tot},{sum_loss2/sum_tot},{sum_correct/sum_tot*100}')
+        if i%100==0: print(f'{i},{sum_loss1/sum_tot},{sum_loss2/sum_tot},{sum_correct/sum_tot*100}')
 
-   
+    torch.save(model.state_dict(), os.join(save,f'weight_{e}.pt'))
