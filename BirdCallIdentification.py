@@ -59,6 +59,7 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 ndim = 128
+npos = 8
 batch_size = 4
 
 mel_parameters = {
@@ -100,15 +101,8 @@ class TrainData1(Dataset):
             #Sdb = torch.cat((START,Sdb), dim=0)
             l = Sdb.shape[0]
             x = torch.linspace(0,l-1,l).view((l,1))
-            p1 = torch.cos(x/3*2*np.pi)
-            p2 = torch.cos(x/5*2*np.pi)
-            p3 = torch.cos(x/7*2*np.pi)
-            p4 = torch.cos(x/11*2*np.pi)
-            p5 = torch.cos(x/23*2*np.pi)
-            p6 = torch.cos(x/34*2*np.pi)
-            p7 = torch.cos(x/45*2*np.pi)
-            p8 = torch.cos(x/56*2*np.pi)
-            Sdb = torch.cat((Sdb,p1,p2,p3,p4,p5,p6,p7,p8), dim = 1)
+            ps = [torch.sin(2*np.pi*x/2* 1.5**i) for i in range(npos)]
+            Sdb = torch.cat([Sdb]+ps), dim = 1)
         return Sdb, tag
 
 
@@ -119,16 +113,18 @@ def pad_collate(batch, pad = -4):
 
 dataset = TrainData1(df_train)
 data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
-encoder_layer = nn.TransformerEncoderLayer(136, 8, 512)
+dmodel = ndim+npos
+encoder_layer = nn.TransformerEncoderLayer(dmodel, 8, 512)
+
 model = nn.TransformerEncoder(encoder_layer, num_layers=4)
+ext = nn.Linear(ndim+npos,ntag)
 model.to(device)
+ext.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
 celoss = torch.nn.CrossEntropyLoss().cuda()
 mseloss = torch.nn.MSELoss().cuda()
-ext = nn.Linear(136,ntag)
-ext.to(device)
-epoch = 1
+epoch = 10
 
 for e in range(epoch):
     sum_loss1 = 0
