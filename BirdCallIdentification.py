@@ -82,13 +82,13 @@ class TrainData1(Dataset):
         self.mask = mask
     def __len__(self):
         return len(self.df)
-    def __getitem__(self, idx, mlen = 256):
+    def __getitem__(self, idx, mlen = 512):
         row = self.df.loc[idx]
         code = row['ebird_code']
         filename = os.path.join('tensors', row['filename'][:-3]+'pt')
         code = row['ebird_code']
         tag = code2tag[code]
-        Sdb = torch.load(filename,ndim)
+        Sdb = torch.load(filename)
         #labels = ast.literal_eval(row['secondary_labels'])
         #tags = [label2tag[l] for l in labels]
         l = Sdb.shape[0]
@@ -111,14 +111,22 @@ def pad_collate(batch, pad = -4):
     x_pad = pad_sequence(x, padding_value=pad)
     return x_pad, t
 
+class myModel(nn.Module):
+    def __init__(self,dm,ntag):
+        super(myModel, self).__init__()
+        encoder_layer = nn.TransformerEncoderLayer(dm, 8, 512)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=4)
+        self.ext = nn.Linear(dm,ntag)
+    def forward(self,x):
+        h = self.encoder(x)
+        h0,h1 = h.split([1,x.shape[0]-1])
+        y = self.ext(h0.squeeze(0))
+        return y,h1
+        
 dataset = TrainData1(df_train)
 data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
-
-encoder_layer = nn.TransformerEncoderLayer(dm, 8, 512)
-model = nn.TransformerEncoder(encoder_layer, num_layers=4)
-ext = nn.Linear(dm,ntag)
+model = myModel(dm, ntag)
 model.to(device)
-ext.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
 celoss = torch.nn.CrossEntropyLoss().cuda()
@@ -134,24 +142,22 @@ for e in range(epoch):
     for i,(x, t) in tqdm(enumerate(data_loader), total=len(data_loader)):
         model.train()
         x = x.to(device)
-        y = x.clone().detach()
+        xo = x.clone().detach()
         x = mask(x,-5)
-        y = y[1:,:,:]
+        xo = xo[1:,:,:]
         t = torch.tensor(t).to(device)
         optimizer.zero_grad()
-        h = model(x)
-        h0,h1 = h.split([1,x.shape[0]-1])
-        score = ext(h0.squeeze(0))
-        loss1 = celoss(score, t)
-        loss2 = mseloss(h1, y)
+        y,h1 = model(x)        
+        loss1 = celoss(y, t)
+        loss2 = mseloss(h1, xo)
         loss = loss1 + loss2
         loss.backward()
-        pred = h[0,:,:].argmax(1)
         optimizer.step()
         sum_loss1 += loss1
         sum_loss2 += loss2
+        pred = y.argmax(1)
         sum_tot += len(t)
         sum_correct += (pred == t).sum().item()
         if i%1==0: print(f'{i},{sum_loss1/sum_tot},{sum_loss2/sum_tot},{sum_correct/sum_tot*100}')
 
-    
+   
