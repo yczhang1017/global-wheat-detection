@@ -57,7 +57,7 @@ ntag = len(tag2code)
 ndim = 128
 npos = 8
 mlen = 800
-batch_size = 4
+batch_size = 16
 dm = ndim+npos
 
 
@@ -128,7 +128,7 @@ data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, c
 model = myModel(dm, ntag)
 model.to(device)
 
-optimizer = torch.optim.Adam(model.parameters(),lr=2e-3,weight_decay=1e-3)
+optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
 celoss = torch.nn.CrossEntropyLoss().cuda()
 mseloss = torch.nn.MSELoss().cuda()
 epoch = 10
