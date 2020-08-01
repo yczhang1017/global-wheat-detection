@@ -56,7 +56,7 @@ for idx, row in df_train.iterrows():
 ntag = len(tag2code)
 ndim = 128
 npos = 8
-mlen = 512
+mlen = 800
 batch_size = 4
 dm = ndim+npos
 
@@ -67,8 +67,9 @@ mel_parameters = {
 }    
 
 def mask(x, mask_value):
-    mask = (torch.rand((x.size(0),1,1))>0.9).expand(x.shape)
-    x[mask] = mask_value
+    mask = (torch.rand((x.size(0),1))>0.9)
+    mask[0,0] = False
+    x[mask.expand(x.shape)] = mask_value
     return x
     
 class TrainData1(Dataset):
@@ -92,19 +93,23 @@ class TrainData1(Dataset):
             Sdb = Sdb[s:s+mlen,:]
         Sdb = (Sdb+20)/12
         if 1==1:
-            #START = torch.ones((1,ndim))
-            #Sdb = torch.cat((START,Sdb), dim=0)
+            START = torch.ones((1,ndim))*4
+            Sdb = torch.cat((START,Sdb), dim=0)
+            Sm = Sdb.clone().detach()
+            Sm = mask(Sm,-4)
             l = Sdb.shape[0]
             x = torch.linspace(0,l-1,l).view((l,1))
             ps = [torch.sin(2*np.pi*x/2*1.8*i) for i in range(npos)]
             Sdb = torch.cat([Sdb]+ps, dim = 1)
-        return Sdb, tag
+            Sm = torch.cat([Sm]+ps, dim = 1)
+        return Sdb, Sm, tag
 
 
-def pad_collate(batch, pad = -4):
-    x,t = zip(*batch)
+def pad_collate(batch, pad = -5):
+    x,xm,t = zip(*batch)
     x_pad = pad_sequence(x, padding_value=pad)
-    return x_pad, t
+    xm_pad = pad_sequence(x, padding_value=pad)
+    return x_pad,xm_pad, t
 
 class myModel(nn.Module):
     def __init__(self,dm,ntag):
@@ -123,7 +128,7 @@ data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, c
 model = myModel(dm, ntag)
 model.to(device)
 
-optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
+optimizer = torch.optim.Adam(model.parameters(),lr=2e-3,weight_decay=1e-3)
 celoss = torch.nn.CrossEntropyLoss().cuda()
 mseloss = torch.nn.MSELoss().cuda()
 epoch = 10
@@ -138,17 +143,15 @@ for e in range(epoch):
     sum_correct = 0
     t0 = time()
     print(f'{e}/{epoch}')
-    for i,(x, t) in enumerate(data_loader):
+    for i,(x, xm, t) in enumerate(data_loader):
         model.train()
         x = x.to(device)
-        xo = x.clone().detach()
-        x = mask(x,-5)
-        xo = xo[1:,:,:]
+        xm = xm.to(device)
         t = torch.tensor(t).to(device)
         optimizer.zero_grad()
-        y,h1 = model(x)        
+        y,h1 = model(xm)        
         loss1 = celoss(y, t)
-        loss2 = mseloss(h1, xo)
+        loss2 = mseloss(h1, x[1:,:,:])
         loss = loss1 + loss2
         loss.backward()
         optimizer.step()
