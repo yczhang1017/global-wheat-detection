@@ -60,6 +60,10 @@ ndim = 128
 mlen = 444
 batch_size = 32
 epoch = 10
+df_train['tag'] = df_train['ebird_code'].map(code2tag)
+ndist = df_train.groupby('tag').count()['rating'].values
+weight = torch.tensor(np.exp(((100/ndist)-1)/5)).to(device)
+
 class TrainData1(Dataset):
     def __init__(self,df,indices):
         self.df = df
@@ -68,9 +72,8 @@ class TrainData1(Dataset):
         return len(self.indices)
     def __getitem__(self, idx, mlen = mlen):
         row = self.df.loc[self.indices[idx]]
-        code = row['ebird_code']
+        code = row['tag']
         filename = os.path.join('tensors', row['filename'][:-3]+'pt')
-        tag = code2tag[code]
         Sdb = torch.load(filename)
         l = Sdb.shape[0]
         Sdb = (Sdb+20)/12
@@ -108,7 +111,6 @@ class BertModel(nn.Module):
 
 
 skf = StratifiedKFold(n_splits=5)
-df_train['tag'] = df_train['ebird_code'].map(code2tag)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
     save =f'ResNeSt{ifold}'
     if not os.path.exists(save):
@@ -123,7 +125,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
-    celoss = torch.nn.CrossEntropyLoss().cuda()
+    celoss = torch.nn.CrossEntropyLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-3,weight_decay=1e-3)
     for e in range(epoch):
         for phase in ['train','val']:
@@ -151,7 +153,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 sum_correct += (pred == t).sum().item()
                 if i%10==0: 
                     print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
-        if phase == 'train':
             torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
     break #ifold
