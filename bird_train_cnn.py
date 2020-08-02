@@ -59,7 +59,7 @@ ntag = len(tag2code)
 ndim = 128
 mlen = 444
 batch_size = 32
-epoch = 30
+epoch = 10
 class TrainData1(Dataset):
     def __init__(self,df,indices):
         self.df = df
@@ -84,11 +84,12 @@ class TrainData1(Dataset):
         return Sdb, torch.tensor(tag)
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-3, warmup=5, Tmax=epoch-5):
+def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
     if e <= warmup:
-        lr = 1e-3 - (1e-3 - 1e-5)*(warmup-e)/warmup
+        lr = 1e-5
     else:
-        lr = 1e-3/2*(1+np.cos((e-warmup)*np.pi/Tmax))
+        lr = 1e-5/2*(1+np.cos((e-warmup)*np.pi/Tmax))
+    print(f'learnig rate={lr}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
