@@ -58,7 +58,7 @@ for idx, row in df_train.iterrows():
 ntag = len(tag2code)
 ndim = 128
 mlen = 444
-batch_size = 16
+batch_size = 32
     
 class TrainData1(Dataset):
     def __init__(self,df,indices):
@@ -105,16 +105,15 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
 
     celoss = torch.nn.CrossEntropyLoss().cuda()
     epoch = 10
-    optimizer = torch.optim.Adam(model.parameters(),lr=1e-2,weight_decay=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(),lr=1e-3,weight_decay=1e-3)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epoch, eta_min=0, last_epoch=-1)
-    
-    for phase in ['train','val']:
-        for e in range(epoch):
+    for e in range(epoch):
+        for phase in ['train','val']:
             sum_loss = 0
             sum_tot = 0
             sum_correct = 0
             t0 = time()
-            print(f'{e}/{epoch}:')
+            print(f'fold{ifold}|{phase}:{e}/{epoch}:')
             for i,(x,t) in enumerate(data_loader[phase]):
                 if phase == 'train':
                     model.train()
