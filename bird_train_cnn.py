@@ -63,7 +63,7 @@ epoch = 10
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/5), dtype=torch.float).to(device)
-assert  len(weight) == ntag
+
 class TrainData1(Dataset):
     def __init__(self,df,indices):
         self.df = df
@@ -143,6 +143,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
+                print(t)
                 loss = celoss(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
