@@ -14,7 +14,7 @@ mel_parameters = {
 
 def sound2tensor(filename, form='mp3', ndim=128, sr = 44100):
     if form== 'mp3':
-        audio = AudioSegment.from_wp3(filename)
+        audio = AudioSegment.from_mp3(filename)
     else: 
         audio = AudioSegment.from_file(filename, form)
     sample = audio.set_channels(1).set_frame_rate(sr).get_array_of_samples()
