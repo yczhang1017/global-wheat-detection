@@ -72,7 +72,6 @@ class TrainData1(Dataset):
         return len(self.indices)
     def __getitem__(self, idx, mlen = mlen):
         row = self.df.loc[self.indices[idx]]
-        code = row['tag']
         filename = os.path.join('tensors', row['filename'][:-3]+'pt')
         Sdb = torch.load(filename)
         l = Sdb.shape[0]
@@ -84,7 +83,7 @@ class TrainData1(Dataset):
             Sdb = torch.cat((Sdb, -4*torch.ones((mlen-l,ndim))),dim=0)
         a,b = Sdb.shape
         Sdb = Sdb.view((3,-1,b))
-        return Sdb, torch.tensor(tag)
+        return Sdb, torch.tensor(row['tag'])
 
 
 def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
@@ -143,7 +142,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
-                print(t)
                 loss = celoss(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
