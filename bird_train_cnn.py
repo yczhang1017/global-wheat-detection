@@ -106,7 +106,7 @@ class BertModel(nn.Module):
         return y,h1        
 
 
-skf = StratifiedKFold(n_splits=10)
+skf = StratifiedKFold(n_splits=5)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
     save =f'ResNeSt{ifold}'
