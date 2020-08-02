@@ -59,7 +59,7 @@ ntag = len(tag2code)
 ndim = 128
 mlen = 444
 batch_size = 32
-epoch = 10
+epoch = 20
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/5), dtype=torch.float).to(device)
@@ -91,7 +91,7 @@ def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
         lr = 1e-5
     else:
         lr = 1e-5/2*(1+np.cos((e-warmup)*np.pi/Tmax))
-    print(f'learnig rate={lr}')
+    print(f'learnig rate={lr:1.3e}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -126,6 +126,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.to(device)
     celoss = torch.nn.CrossEntropyLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-3,weight_decay=1e-3)
+    best_acc = 0
     for e in range(epoch):
         for phase in ['train','val']:
             if phase == 'train':
@@ -152,6 +153,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 sum_correct += (pred == t).sum().item()
                 if i%10==0: 
                     print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
-            torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
+            print(f'{phase}({e})\t{(time()-t0)}s\t{sum_loss/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
+        torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
     break #ifold
