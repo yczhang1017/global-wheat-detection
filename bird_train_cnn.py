@@ -127,17 +127,17 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-3,weight_decay=1e-3)
     for e in range(epoch):
         for phase in ['train','val']:
+            if phase == 'train':
+                model.train()
+                adjust_learning_rate(optimizer,e)
+            else:
+                model.eval()
             sum_loss = 0
             sum_tot = 0
             sum_correct = 0
             t0 = time()
             print(f'fold{ifold}|{e}/{epoch}:{phase}')
             for i,(x,t) in enumerate(data_loader[phase]):
-                if phase == 'train':
-                    model.train()
-                    adjust_learning_rate(optimizer,e)
-                else:
-                    model.eval()
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
