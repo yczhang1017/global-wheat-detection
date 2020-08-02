@@ -65,15 +65,13 @@ class TrainData1(Dataset):
         self.df = df
         self.indices = indices
     def __len__(self):
-        return len(self.df)
+        return len(self.indices)
     def __getitem__(self, idx, mlen = mlen):
         row = self.df.loc[self.indices[idx]]
         code = row['ebird_code']
-        filename = os.path.join(self.root, code, row['filename'])
+        filename = os.path.join('tensors', row['filename'][:-3]+'pt')
         tag = code2tag[code]
-        Sdb = sound2tensor(filename, row['file_type'], ndim)
-        #labels = ast.literal_eval(row['secondary_labels'])
-        #tags = [label2tag[l] for l in labels]
+        Sdb = torch.load(filename)
         l = Sdb.shape[0]
         Sdb = (Sdb+20)/12
         if l > mlen:
@@ -81,6 +79,7 @@ class TrainData1(Dataset):
             Sdb = Sdb[s:s+mlen,:]
         elif l < mlen:
             Sdb = torch.cat((Sdb, -4*torch.ones((mlen-l,ndim))),dim=0)
+        a,b = Sdb.shape
         Sdb = Sdb.view((3,-1,b))
         return Sdb, torch.tensor(tag)
 
@@ -116,7 +115,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             sum_correct = 0
             t0 = time()
             print(f'{e}/{epoch}:')
-            for i,(x,t) in enumerate(data_loader):
+            for i,(x,t) in enumerate(data_loader[phase]):
                 if phase == 'train':
                     model.train()
                 else:
