@@ -63,7 +63,7 @@ epoch = 10
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/5), dtype=torch.float).to(device)
-
+assert  len(weight) == ntag
 class TrainData1(Dataset):
     def __init__(self,df,indices):
         self.df = df
