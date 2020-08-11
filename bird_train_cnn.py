@@ -91,7 +91,7 @@ class TrainData(Dataset):
             elif l < self.l:
                 x[cur:cur+l,:] = Sdb
             cur = c 
-            if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
+            if self.mosaic==(1,1): return x.view((-1,3,ndim)).permute((1,0,2)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
         if image: x = x.view((-1,3,ndim)).permute((1,0,2))
         return x,t
