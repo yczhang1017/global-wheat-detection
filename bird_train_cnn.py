@@ -57,22 +57,23 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 ndim = 128
-mlen = 441
-batch_size = 32
+mlen = 800
+batch_size = 16
 epoch = 20
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self,df,indices):
+    def __init__(self,df,indices, mosaic=(1,3)):
         self.df = df
         self.indices = indices
+        self.mosaic = mosaic
     def __len__(self):
         return len(self.indices)
     def __getitem__(self, idx, mlen = mlen, encode_tag = True, image = True):
         rows = [self.df.loc[self.indices[idx]]]
-        mosaic = random.randint(1,3)
+        mosaic = random.randint(*self.mosaic)
         for i in range(mosaic-1):
             rows += [self.df.loc[random.choice(self.indices)]]
         cur = 0
@@ -91,7 +92,7 @@ class TrainData(Dataset):
                 x[cur:cur+l,:] = Sdb
             cur = c 
             t[row['tag']] = 1    
-        if image: x = x.view((3,-1,ndim))
+        if image: x = x.view((1,-1,ndim))
         return x,t
 
 
@@ -122,6 +123,11 @@ class BertModel(nn.Module):
         y = self.fc(x).mean(1)
         return y
 
+def cnnModel():
+    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
+    model.fc = nn.Linear(2048,ntag)
+    return model
 
 skf = StratifiedKFold(n_splits=5)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
@@ -135,12 +141,10 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             batch_size=batch_size, shuffle = (x=='train'),
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
-    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    model.fc = nn.Linear(2048,ntag)
-    #model = BertModel()
+    model = cnnModel()
     model.to(device)
     criterion = torch.nn.BCELoss().cuda()
-    optimizer = torch.optim.SGD(model.parameters(),lr=1e-6,weight_decay=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
         for phase in ['train','val']:
