@@ -193,7 +193,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     optimizer.step()
                 sum_loss += loss.item()
                 sum_tot += x.shape[0] 
-                pred = y > 0.3
+                pred =  torch.sigmoid(y) > 0.3
                 sum_tp += ((pred==1) & (t==1)).sum().item()
                 sum_fp += t.sum().item()                    
                 sum_fn += pred.sum().item()
