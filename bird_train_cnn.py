@@ -112,7 +112,8 @@ class BertModel(nn.Module):
         self.fc = nn.Linear(self.dm,ntag)
     def forward(self,x):
         b,l,d = x.shape
-        s = torch.linspace(0,l-1,l).view((1,l,1)).expand((b,l,1))
+        s = torch.linspace(0,l-1,l).to(device)
+        s = s.view((1,l,1)).expand((b,l,1))
         ps = [torch.sin(2*np.pi*s/(4*1.6*i)) for i in range(self.npos)]
         x = torch.cat([x]+ps, dim = 1)
         x = self.encoder(x)
