@@ -137,7 +137,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     #model.fc = nn.Linear(2048,ntag)
     model = BertModel()
     model.to(device)
-    criterion = torch.nn.BCELoss(weight=weight).cuda()
+    criterion = torch.nn.BCELoss().cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
