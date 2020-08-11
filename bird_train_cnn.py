@@ -64,7 +64,7 @@ ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self, df, indices, mosaic=(1,1), l = 441):
+    def __init__(self, df, indices, mosaic=(1,3), l = 821):
         self.df = df
         self.indices = indices
         self.mosaic = mosaic
@@ -97,7 +97,7 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup = 2, Tmax=epoch):
+def adjust_learning_rate(optimizer, e, lr0=1e-5, warmup = 2, Tmax=epoch):
     if e < warmup:
         lr = lr0
     else:
@@ -157,7 +157,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
-    criterion = nn.CrossEntropyLoss(weight=weight).cuda()
+    criterion = FocalLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
