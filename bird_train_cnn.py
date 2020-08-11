@@ -57,33 +57,40 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 ndim = 128
-mlen = 444
+mlen = 540
 batch_size = 32
 epoch = 20
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
-class TrainData1(Dataset):
+class TrainData(Dataset):
     def __init__(self,df,indices):
         self.df = df
         self.indices = indices
     def __len__(self):
         return len(self.indices)
-    def __getitem__(self, idx, mlen = mlen):
-        row = self.df.loc[self.indices[idx]]
-        filename = os.path.join('tensors', row['filename'][:-3]+'pt')
-        Sdb = torch.load(filename)
-        l = Sdb.shape[0]
-        Sdb = (Sdb+20)/12
-        if l > mlen:
-            s = random.randrange(0,l-mlen)
-            Sdb = Sdb[s:s+mlen,:]
-        elif l < mlen:
-            Sdb = torch.cat((Sdb, -4*torch.ones((mlen-l,ndim))),dim=0)
-        a,b = Sdb.shape
-        Sdb = Sdb.view((3,-1,b))
-        return Sdb, torch.tensor(row['tag'])
+    def __getitem__(self, idx, mlen = mlen, encode_tag = True, mosaic = 2, image = False):
+        rows = [self.df.loc[self.indices[idx]]]
+        for i in range(mosaic-1):
+            rows += [self.df.loc[random.choice(self.indices)]]
+        cur = 0
+        x = -4*torch.ones((mlen,ndim))
+        t = torch.zeros((mlen))
+        for i, row in enumerate(rows):
+            filename = os.path.join('tensors', row['filename'][:-3]+'pt')
+            Sdb = torch.load(filename)
+            Sdb = (Sdb+20)/12
+            l = Sdb.shape[0]
+            crop = int(mlen // mosaic * random.uniform(0.8,1.2)) 
+            if l > crop:
+                s = random.randrange(0,l-mlen)
+                x[cur:crop,:] = Sdb[s:s+mlen,:]
+            elif l < mlen:
+                x[cur:cur+l,:] = Sdb
+            t[row['tag']] = 1    
+        if image: x = x.view((3,-1,ndim))
+        return x,t
 
 
 def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
@@ -97,16 +104,21 @@ def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
 
 class BertModel(nn.Module):
     def __init__(self,ndim=ndim,ntag=ntag,npos=8):
-        super(myModel, self).__init__()
+        super(BertModel, self).__init__()
         self.dm = ndim + npos
-        encoder_layer = nn.TransformerEncoderLayer(self.dm, 16, 512)
+        self.npos = npos
+        encoder_layer = nn.TransformerEncoderLayer(self.dm, 8, 256)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=4)
-        self.ext = nn.Linear(dm,ntag)
+        self.fc = nn.Linear(self.dm,ntag)
     def forward(self,x):
-        h = self.encoder(x)
-        h0,h1 = h.split([1,x.shape[0]-1])
-        y = self.ext(h0.squeeze(0))
-        return y,h1        
+        x = torch.cat()
+        b,l,d = x.shape
+        s = torch.linspace(0,l-1,l).view((1,l,1)).expand((b,l,1))
+        ps = [torch.sin(2*np.pi*s/(4*1.6*i)) for i in range(self.npos)]
+        x = torch.cat([x]+ps, dim = 1)
+        x = self.encoder(x)
+        y = self.fc(x).mean(1)
+        return y
 
 
 skf = StratifiedKFold(n_splits=5)
@@ -115,8 +127,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     if not os.path.exists(save):
         os.mkdir(save)
     
-    dataset = {'train':TrainData1(df_train, train_indices),
-                'val':TrainData1(df_train, val_indices)}
+    dataset = {'train':TrainData(df_train, train_indices),
+                'val':TrainData(df_train, val_indices)}
     data_loader = {x: DataLoader(dataset[x],
             batch_size=batch_size, shuffle = (x=='train'),
             num_workers=4,pin_memory=True)
@@ -124,7 +136,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
-    celoss = torch.nn.CrossEntropyLoss(weight=weight).cuda()
+    criterion = torch.nn.BCELoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
@@ -140,10 +152,11 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             t0 = time()
             print(f'fold{ifold}|{e}/{epoch}:{phase}')
             for i,(x,t) in enumerate(data_loader[phase]):
-                x = x.to(device)
+                c = random.randint(0, mlen//10)
+                x = x[:,c:-c,:].to(device)
                 t = t.to(device)
                 y = model(x)
-                loss = celoss(y, t)
+                loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
