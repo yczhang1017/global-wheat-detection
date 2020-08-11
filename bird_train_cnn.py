@@ -59,13 +59,12 @@ ntag = len(tag2code)
 ndim = 128
 batch_size = 16
 epoch = 20
-stage = 10
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self, df, indices, mosaic=(1,1), l=431):
+    def __init__(self, df, indices, mosaic=(1,3), l = 821):
         self.df = df
         self.indices = indices
         self.mosaic = mosaic
@@ -98,12 +97,11 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup=1, Tmax=epoch-1):
+def adjust_learning_rate(optimizer, e, lr0=1e-3, warmup=2, Tmax=epoch-1):
     if e <= warmup:
-        lr = lr0
+        lr = 10*lr0 if e<1 else lr0  
     else:
         lr = lr0/2*(1+np.cos((e-warmup)*np.pi/Tmax))
-    if e>stage: lr = lr*1e2
     print(f'learnig rate={lr:1.3e}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -132,6 +130,22 @@ def cnnModel():
     model.fc = nn.Linear(2048,ntag)
     return model
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2, reduce=True, weight=None ):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.reduce = reduce
+        self.weight = weight
+
+    def forward(self, inputs, targets):
+        BCE_loss = torch.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight)
+        pt = torch.exp(-BCE_loss).detach()
+        F_loss = (1-pt)**self.gamma * BCE_loss
+        if self.reduce:
+            return torch.mean(F_loss)
+        else:
+            return F_loss
+        
 skf = StratifiedKFold(n_splits=5)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
     save =f'ResNeSt{ifold}'
@@ -145,15 +159,17 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for x in ['train', 'val']}
     model = cnnModel()
     model.to(device)
-    criterion = torch.nn.CrossEntropyLoss(weight=weight).cuda()
+    criterion = FocalLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
+        """
         if e == stage:
             dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
             data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
             criterion = torch.nn.BCELoss(weight=weight).cuda()
             print('Start using Mosaic and BCELoss:')
+        """
         for phase in ['train','val']:
             if phase == 'train':
                 model.train()
@@ -171,21 +187,20 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
-                y = torch.sigmoid(y)
                 loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
-                pred = y > 0.5
-                sum_loss += loss.item()
-                sum_tot += len(t)
-                sum_tp += ((pred==1) & (t==1)).sum().item()
-                sum_fp += t.sum().item()
-                sum_fn += pred.sum().item()
                 
+                sum_loss += loss.item()
+                sum_tot += x.shape[0] 
+                pred = y > 0.3
+                sum_tp += ((pred==1) & (t==1)).sum().item()
+                sum_fp += t.sum().item()                    
+                sum_fn += pred.sum().item()
                 if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4f}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
-            print(f'{phase}({e})\t{(time()-t0)}s\t{sum_loss/sum_tot:1.4f}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
+                    print(f'{i}\t{(time()-t0)/(i+1):1.2e}s\t{sum_loss/sum_tot:1.4f}\t{sum_tp}/{sum_fp}\t{sum_tp}/{sum_fn}')
+            print(f'{phase}({e})\t{(time()-t0)}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
     break #ifold
