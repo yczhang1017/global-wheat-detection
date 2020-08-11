@@ -98,11 +98,7 @@ class TrainData(Dataset):
 
 
 def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup = 2, Tmax=epoch):
-    if e<1:
-        lr = 100*lr0
-    elif e<3:
-        lr = 10*lr0
-    elif e < warmup:
+    if e < warmup:
         lr = lr0
     else:
         lr = lr0/2*(1+np.cos((e-warmup)*np.pi/(Tmax-warmup)))
