@@ -64,7 +64,7 @@ ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self, df, indices, mosaic=(1,1), l = 441):
+    def __init__(self, df, indices, mosaic=(1,3), l = 821):
         self.df = df
         self.indices = indices
         self.mosaic = mosaic
@@ -91,9 +91,9 @@ class TrainData(Dataset):
             elif l < self.l:
                 x[cur:cur+l,:] = Sdb
             cur = c 
-            if self.mosaic==(1,1): return x.view((-1,3,ndim)).permute((1,0,2)), torch.tensor(row['tag'])
+            if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
-        if image: x = x.view((-1,3,ndim)).permute((1,0,2))
+        if image: x = x.view((1,-1,ndim))
         return x,t
 
 
@@ -154,10 +154,10 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
     model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    #model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
+    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
-    criterion = nn.CrossEntropyLoss(weight=weight).cuda()
+    criterion = FocalLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
@@ -191,18 +191,18 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     optimizer.step()
                 sum_loss += loss.item()
                 sum_tot += x.shape[0] 
-                if True:
+                if False:
                     pred = y.argmax(1)
                     sum_tp += (pred==t).sum().item()
                     sum_fp += len(t)                    
                     sum_fn += len(pred)
                 else:
-                    pred =  torch.sigmoid(y) > 0.3
+                    pred =  torch.sigmoid(y) > 0.5
                     sum_tp += ((pred==1) & (t==1)).sum().item()
                     sum_fp += t.sum().item()                    
                     sum_fn += pred.sum().item()
                 if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.2f}\t{sum_tp/sum_fn*100:1.2f}')
+                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
             print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
