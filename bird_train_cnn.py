@@ -57,7 +57,6 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 ndim = 128
-mlen = 800
 batch_size = 16
 epoch = 20
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
@@ -65,32 +64,34 @@ ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self,df,indices, mosaic=(1,3)):
+    def __init__(self, df, indices, mosaic=(1,1), l=431):
         self.df = df
         self.indices = indices
         self.mosaic = mosaic
+        self.l = l
     def __len__(self):
         return len(self.indices)
-    def __getitem__(self, idx, mlen = mlen, encode_tag = True, image = True):
+    def __getitem__(self, idx, encode_tag = True, image = True):
         rows = [self.df.loc[self.indices[idx]]]
         mosaic = random.randint(*self.mosaic)
         for i in range(mosaic-1):
             rows += [self.df.loc[random.choice(self.indices)]]
         cur = 0
-        x = -4*torch.ones((mlen,ndim))
+        x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
         for i, row in enumerate(rows):
             filename = os.path.join('tensors', row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
-            c = mlen-cur if i==mosaic-1 else int(mlen // mosaic * random.uniform(0.8,1.2)) 
+            c = self.l-cur if i==mosaic-1 else int(self.l // mosaic * random.uniform(0.8,1.2)) 
             if l > c:
                 s = random.randrange(0,l-c)
                 x[cur:cur+c,:] = Sdb[s:s+c,:]
-            elif l < mlen:
+            elif l < self.l:
                 x[cur:cur+l,:] = Sdb
             cur = c 
+            if self.mosaic==(1,1): return x, torch.tensor(row['tag'])
             t[row['tag']] = 1    
         if image: x = x.view((1,-1,ndim))
         return x,t
@@ -134,7 +135,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     save =f'ResNeSt{ifold}'
     if not os.path.exists(save):
         os.mkdir(save)
-    
     dataset = {'train':TrainData(df_train, train_indices),
                 'val':TrainData(df_train, val_indices)}
     data_loader = {x: DataLoader(dataset[x],
@@ -143,10 +143,14 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for x in ['train', 'val']}
     model = cnnModel()
     model.to(device)
-    criterion = torch.nn.BCELoss().cuda()
+    criterion = torch.nn.CrossEntropyLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
+        if e == 5:
+            dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 800)
+            data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
+            criterion = torch.nn.BCELoss(weight=weight).cuda()
         for phase in ['train','val']:
             if phase == 'train':
                 model.train()
