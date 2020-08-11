@@ -154,7 +154,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
     model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
+    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(3, 3), padding=(1, 1), bias=False)
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
