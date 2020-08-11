@@ -197,7 +197,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     sum_fp += len(t)                    
                     sum_fn += len(pred)
                 else:
-                    pred =  torch.sigmoid(y) > 0.2
+                    y =  torch.sigmoid(y)
+                    pred = y>0.2
                     sum_tp += ((pred==1) & (t==1)).sum().item()
                     sum_fp += t.sum().item()                    
                     sum_fn += pred.sum().item()
