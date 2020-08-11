@@ -124,11 +124,7 @@ class BertModel(nn.Module):
         y = self.fc(x).mean(1)
         return y
 
-def cnnModel():
-    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
-    model.fc = nn.Linear(2048,ntag)
-    return model
+
 
 class FocalLoss(nn.Module):
     def __init__(self, gamma=2, reduce=True, weight=None ):
@@ -157,7 +153,9 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             batch_size=batch_size, shuffle = (x=='train'),
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
-    model = cnnModel()
+    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(2, 2), padding=(1, 1), bias=False)
+    model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
