@@ -168,7 +168,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 pred = y > 0.5
                 sum_loss += loss.item()
                 sum_tot += len(t)
-                sum_tp += (pred == t).sum().item()
+                sum_tp += ((pred==1) & (t==1)).sum().item()
                 sum_fp += t.sum().item()
                 sum_fn += pred.sum().item()
                 
