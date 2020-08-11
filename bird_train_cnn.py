@@ -82,10 +82,10 @@ class TrainData(Dataset):
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
-            crop = int(mlen // mosaic * random.uniform(0.8,1.2)) 
-            if l > crop:
-                s = random.randrange(0,l-mlen)
-                x[cur:crop,:] = Sdb[s:s+mlen,:]
+            c = int(mlen // mosaic * random.uniform(0.8,1.2)) 
+            if l > c:
+                s = random.randrange(0,l-c)
+                x[cur:cur+c,:] = Sdb[s:s+c,:]
             elif l < mlen:
                 x[cur:cur+l,:] = Sdb
             t[row['tag']] = 1    
