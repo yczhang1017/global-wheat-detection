@@ -76,7 +76,7 @@ class TrainData(Dataset):
             rows += [self.df.loc[random.choice(self.indices)]]
         cur = 0
         x = -4*torch.ones((mlen,ndim))
-        t = torch.zeros((mlen))
+        t = torch.zeros((ntag))
         for i, row in enumerate(rows):
             filename = os.path.join('tensors', row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
