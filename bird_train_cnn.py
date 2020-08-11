@@ -58,7 +58,7 @@ for idx, row in df_train.iterrows():
 ntag = len(tag2code)
 ndim = 128
 batch_size = 16
-epoch = 20
+epoch = 30
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
