@@ -133,8 +133,9 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             batch_size=batch_size, shuffle = (x=='train'),
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
-    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    model.fc = nn.Linear(2048,ntag)
+    #model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+    #model.fc = nn.Linear(2048,ntag)
+    model = BertModel()
     model.to(device)
     criterion = torch.nn.BCELoss(weight=weight).cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
