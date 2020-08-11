@@ -111,7 +111,6 @@ class BertModel(nn.Module):
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=4)
         self.fc = nn.Linear(self.dm,ntag)
     def forward(self,x):
-        x = torch.cat()
         b,l,d = x.shape
         s = torch.linspace(0,l-1,l).view((1,l,1)).expand((b,l,1))
         ps = [torch.sin(2*np.pi*s/(4*1.6*i)) for i in range(self.npos)]
@@ -155,6 +154,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for i,(x,t) in enumerate(data_loader[phase]):
                 c = random.randint(0, mlen//10)
                 x = x[:,c:-c,:].to(device)
+                print(x.shape)
                 t = t.to(device)
                 y = model(x)
                 loss = criterion(y, t)
