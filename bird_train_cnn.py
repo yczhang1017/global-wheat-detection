@@ -57,7 +57,7 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 ndim = 128
-mlen = 540
+mlen = 441
 batch_size = 32
 epoch = 20
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
@@ -133,9 +133,9 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             batch_size=batch_size, shuffle = (x=='train'),
             num_workers=4,pin_memory=True)
             for x in ['train', 'val']}
-    #model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    #model.fc = nn.Linear(2048,ntag)
-    model = BertModel()
+    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+    model.fc = nn.Linear(2048,ntag)
+    #model = BertModel()
     model.to(device)
     criterion = torch.nn.BCELoss().cuda()
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
@@ -153,9 +153,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             t0 = time()
             print(f'fold{ifold}|{e}/{epoch}:{phase}')
             for i,(x,t) in enumerate(data_loader[phase]):
-                c = random.randint(0, mlen//10)
-                x = x[:,c:-c,:].to(device)
-                print(x.shape)
+                x = x.to(device)
                 t = t.to(device)
                 y = model(x)
                 loss = criterion(y, t)
