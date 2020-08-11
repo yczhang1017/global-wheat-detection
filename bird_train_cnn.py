@@ -97,7 +97,7 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup = 2, Tmax=epoch):
+def adjust_learning_rate(optimizer, e, lr0=1e-7, warmup = 2, Tmax=epoch):
     if e < warmup:
         lr = lr0
     else:
@@ -184,7 +184,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
-                y = model(x)
+                y = model(x)-2.3
                 loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
@@ -198,7 +198,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     sum_fn += len(pred)
                 else:
                     y =  torch.sigmoid(y)
-                    pred = y>0.9
+                    pred = y>0.5
                     sum_tp += ((pred==1) & (t==1)).sum().item()
                     sum_fp += t.sum().item()                    
                     sum_fn += pred.sum().item()
