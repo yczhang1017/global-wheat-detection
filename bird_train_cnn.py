@@ -97,12 +97,12 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-3, warmup=2, Tmax=epoch-1):
-    if e <= warmup:
-        lr = 10*lr0 if e<1 else lr0  
+def adjust_learning_rate(optimizer, e, lr0=1e-4, warmup = 2, Tmax=epoch-1):
+    if e < warmup:
+        lr = 10*lr0 if e < 1 else lr0
     else:
         lr = lr0/2*(1+np.cos((e-warmup)*np.pi/Tmax))
-    print(f'learnig rate={lr:1.3e}')
+    print(f'learnig rate = {lr:1.2e}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -191,7 +191,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
-                
                 sum_loss += loss.item()
                 sum_tot += x.shape[0] 
                 pred = y > 0.3
@@ -199,7 +198,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 sum_fp += t.sum().item()                    
                 sum_fn += pred.sum().item()
                 if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp:1.2f}\t{sum_tp/sum_fn:1.2f}')
+                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.2f}\t{sum_tp/sum_fn*100:1.2f}')
             print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.2e}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
