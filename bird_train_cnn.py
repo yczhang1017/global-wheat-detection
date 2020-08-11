@@ -184,7 +184,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
-                y = model(x)
+                y = model(x)-2.3
                 loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
