@@ -6,7 +6,6 @@ import pandas as pd
 
 import torch 
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
@@ -71,8 +70,9 @@ class TrainData(Dataset):
         self.indices = indices
     def __len__(self):
         return len(self.indices)
-    def __getitem__(self, idx, mlen = mlen, encode_tag = True, mosaic = 2, image = True):
+    def __getitem__(self, idx, mlen = mlen, encode_tag = True, image = True):
         rows = [self.df.loc[self.indices[idx]]]
+        mosaic = random.randint(1,3)
         for i in range(mosaic-1):
             rows += [self.df.loc[random.choice(self.indices)]]
         cur = 0
@@ -151,24 +151,30 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 model.eval()
             sum_loss = 0
             sum_tot = 0
-            sum_correct = 0
+            sum_tp = 0
+            sum_fn = 0
+            sum_fp = 0
             t0 = time()
             print(f'fold{ifold}|{e}/{epoch}:{phase}')
             for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
-                loss = criterion(F.sigmoid(y), t)
+                y = torch.sigmoid(y)
+                loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
-                pred = y.argmax(1)
+                pred = y > 0.5
                 sum_loss += loss.item()
                 sum_tot += len(t)
-                sum_correct += (pred == t).sum().item()
+                sum_tp += (pred == t).sum().item()
+                sum_fp += t.sum().item()
+                sum_fn += pred.sum().item()
+                
                 if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
-            print(f'{phase}({e})\t{(time()-t0)}s\t{sum_loss/sum_tot:1.4f}\t{sum_correct/sum_tot*100:1.4f}')
+                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4f}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
+            print(f'{phase}({e})\t{(time()-t0)}s\t{sum_loss/sum_tot:1.4f}\t{sum_tp/sum_fp*100:1.4f}\t{sum_tp/sum_fn*100:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
     break #ifold
