@@ -6,6 +6,7 @@ import pandas as pd
 
 import torch 
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
@@ -82,12 +83,13 @@ class TrainData(Dataset):
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
-            c = int(mlen // mosaic * random.uniform(0.8,1.2)) 
+            c = mlen-cur if i==mosaic-1 else int(mlen // mosaic * random.uniform(0.8,1.2)) 
             if l > c:
                 s = random.randrange(0,l-c)
                 x[cur:cur+c,:] = Sdb[s:s+c,:]
             elif l < mlen:
                 x[cur:cur+l,:] = Sdb
+            cur = c 
             t[row['tag']] = 1    
         if image: x = x.view((3,-1,ndim))
         return x,t
@@ -156,7 +158,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 x = x.to(device)
                 t = t.to(device)
                 y = model(x)
-                loss = criterion(y, t)
+                loss = criterion(F.sigmoid(y), t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
