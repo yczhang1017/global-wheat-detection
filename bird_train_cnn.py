@@ -115,7 +115,7 @@ class BertModel(nn.Module):
         s = torch.linspace(0,l-1,l).to(device)
         s = s.view((1,l,1)).expand((b,l,1))
         ps = [torch.sin(2*np.pi*s/(4*1.6*i)) for i in range(self.npos)]
-        x = torch.cat([x]+ps, dim = 1)
+        x = torch.cat([x]+ps, dim = 2)
         x = self.encoder(x)
         y = self.fc(x).mean(1)
         return y
