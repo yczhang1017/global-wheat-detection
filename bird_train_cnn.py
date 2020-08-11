@@ -7,7 +7,7 @@ import pandas as pd
 import torch 
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from torch.nn.utils.rnn import pad_sequence
+#from torch.nn.utils.rnn import pad_sequence
 from time import time
 from sklearn.model_selection import StratifiedKFold
 #import ast
@@ -70,7 +70,7 @@ class TrainData(Dataset):
         self.indices = indices
     def __len__(self):
         return len(self.indices)
-    def __getitem__(self, idx, mlen = mlen, encode_tag = True, mosaic = 2, image = False):
+    def __getitem__(self, idx, mlen = mlen, encode_tag = True, mosaic = 2, image = True):
         rows = [self.df.loc[self.indices[idx]]]
         for i in range(mosaic-1):
             rows += [self.df.loc[random.choice(self.indices)]]
