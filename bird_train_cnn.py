@@ -153,6 +153,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
             data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
             criterion = torch.nn.BCELoss(weight=weight).cuda()
+            print('Start using Mosaic and BCELoss:')
         for phase in ['train','val']:
             if phase == 'train':
                 model.train()
