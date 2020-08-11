@@ -95,11 +95,11 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, warmup=1, Tmax=epoch-1):
+def adjust_learning_rate(optimizer, e, lr0=1e-8, warmup=1, Tmax=epoch-1):
     if e <= warmup:
-        lr = 1e-6
+        lr = lr0
     else:
-        lr = 1e-6/2*(1+np.cos((e-warmup)*np.pi/Tmax))
+        lr = lr0/2*(1+np.cos((e-warmup)*np.pi/Tmax))
     print(f'learnig rate={lr:1.3e}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
