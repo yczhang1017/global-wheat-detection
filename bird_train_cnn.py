@@ -59,6 +59,7 @@ ntag = len(tag2code)
 ndim = 128
 batch_size = 16
 epoch = 20
+stage = 10
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
@@ -102,6 +103,7 @@ def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup=1, Tmax=epoch-1):
         lr = lr0
     else:
         lr = lr0/2*(1+np.cos((e-warmup)*np.pi/Tmax))
+    if e>stage: lr = lr*1e2
     print(f'learnig rate={lr:1.3e}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -147,8 +149,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
-        if e == 5:
-            dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 800)
+        if e == stage:
+            dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
             data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
             criterion = torch.nn.BCELoss(weight=weight).cuda()
         for phase in ['train','val']:
