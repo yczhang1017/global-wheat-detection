@@ -199,14 +199,16 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     sum_fn += len(pred)
                 else:
                     y =  torch.sigmoid(y)
-                    pred = y>0.5
+                    top, _ = y.topk(3,1)
+                    thresh = top[:,-1].mean().item()
+                    pred = y > thresh
                     sum_tp += ((pred==1) & (t==1)).sum().item()
                     sum_fp += t.sum().item()                    
                     sum_fn += pred.sum().item()
                 recall = sum_tp/sum_fp*100 if sum_tp else 0
                 prec = sum_tp/sum_fn*100 if sum_tp else 0
                 if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{y.mean().item():1.4f}')
+                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{thresh:1.4f}')
             print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
 
