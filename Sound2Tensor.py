@@ -1,17 +1,13 @@
 import librosa
 from pydub import AudioSegment
-import os 
-import sys
+#import os 
+#import sys
+import math
 from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
 import pandas as pd
-mel_parameters = {
-    "fmin": 40,
-    "fmax": 14000
-}    
-
 import argparse
 parser = argparse.ArgumentParser(description='Convert mp3 to tensor')
 parser.add_argument('-d','--data', default='.', help='data directory')
@@ -22,17 +18,25 @@ args = parser.parse_args()
 
 root = Path(args.data)
 save = root/args.save
-if not save.exist(): save.mkdir()
-def sound2tensor(filename, form='mp3', ndim=128, sr = args.sr):
+if not save.exists(): save.mkdir()
+
+mel_parameters = {
+    "fmin": 40,
+    "fmax": 14000
+}    
+def sample2tensor(sample, ndim = 128):
+    x = np.array(sample).astype(np.float32)/2**14
+    S = librosa.feature.melspectrogram(x, args.sr, n_mels=ndim, **mel_parameters)
+    Sdb = librosa.power_to_db(S).astype(np.float32).transpose()
+    return torch.tensor(Sdb)
+
+def sound2tensor(filename, form='mp3'):
     if form== 'mp3':
         audio = AudioSegment.from_mp3(filename)
     else: 
         audio = AudioSegment.from_file(filename, form)
-    sample = audio.set_channels(1).set_frame_rate(sr).get_array_of_samples()
-    x = np.array(sample).astype(np.float32)/2**14
-    S = librosa.feature.melspectrogram(x,sr,n_mels=ndim,**mel_parameters)
-    Sdb = librosa.power_to_db(S).astype(np.float32).transpose()
-    return torch.tensor(Sdb)
+    sample = audio.set_channels(1).set_frame_rate(args.sr).get_array_of_samples()
+    return sample2tensor(sample)
 
 def df2tensor(df,form='mp3'):
     for i,r in tqdm(df.iterrows(), total = len(df)):
@@ -44,7 +48,7 @@ def df2tensor(df,form='mp3'):
             print(f'{f} cannot be decoded')
         torch.save(x, save/(f[:-3]+'pt'))
             
-def convertExample(df=df_example,form='mp3'):
+def convertExample(df):
     folder = root/'example_test_audio'
     for f in folder.iterdir():
         audio = AudioSegment.from_mp3(f).set_channels(1)
@@ -61,8 +65,9 @@ if "train" in jobs:
     df3 = df[np.logical_or(df['file_type'] == 'mp3', df['file_type'] == 'mp4')]
     df2tensor(df1,'wav')
     df2tensor(df2,'aac')
-if "example" in job.split(','):
+if "example" in jobs:
     df = pd.read_csv(root/'example_test_audio_summary.csv')
+    convertExample(df)
 
 #df2tensor(df2,'mp3')
 
