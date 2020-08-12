@@ -148,7 +148,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.SGD(model.parameters(),lr=1e-4,weight_decay=1e-4)
+    optimizer = torch.optim.SGD(model.parameters(),lr=1e-3,weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1,3,5,10,15,20,25], gamma=0.3)
     best_acc = 0
     for e in range(epoch):
@@ -174,7 +174,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
-                y = model(x)
+                y = model(x)-2
                 loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
