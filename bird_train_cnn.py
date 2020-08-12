@@ -19,7 +19,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description='Train ResNeSt for bird call')
 parser.add_argument('-d','--data', default='.', help='data directory')
 parser.add_argument('-e','--epoch', default=40, help='number of epoch')
-parser.add_argument('-l','--length', default=1271, help='length of sequence')
+parser.add_argument('-l','--length', default=821, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
 parser.add_argument('-m','--milestones', default="5,10,15,20,25,30,35" ,help='number of epoch')
@@ -33,7 +33,9 @@ batch_size = 32
 root = Path(args.data)
 df_train = pd.read_csv(root/'train.csv')
 df_test = pd.read_csv(root/'test.csv')
-
+df_example = pd.read_csv(root/'example_test_audio_summary.csv')
+df_example["birds"].fillna(".", inplace = True)
+df_example['tags'] =df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def set_seed(seed = 42):
     random.seed(seed)
@@ -84,14 +86,16 @@ class TrainData(Dataset):
     def __len__(self):
         return len(self.indices)
     def __getitem__(self, idx, encode_tag = True, image = True):
-        rows = [self.df.loc[self.indices[idx]]]
+        ids = [self.indices[idx]]
         mosaic = random.randint(*self.mosaic)
         for i in range(mosaic-1):
-            rows += [self.df.loc[random.choice(self.indices)]]
+            ids += random.choice(self.indices)
+        
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
-        for i, row in enumerate(rows):
+        for i, idx in enumerate(ids):
+            row = self.df.loc[idx]
             filename = root/'tensors'/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
@@ -106,7 +110,29 @@ class TrainData(Dataset):
             if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
         if image: x = x.view((1,-1,ndim))
+        
+        valid_len = (x>-4).sum().item()
+        print(ids, valid_len, t.sum().item())
         return x,t
+
+class exampleData(Dataset):
+    def __init__(self, l = args.length):
+        self.df = df_example
+        self.l = l
+    def __len__(self):
+        return len(self.df)
+    def __getitem__(self,idx):
+        row = self.df.iloc[idx]
+        Sdb = torch.load(root/'example_tensors'/(row['filename_seconds']+'.pt'))
+        l = Sdb.shape[0]
+        Sdb = (Sdb+20)/12
+        x = torch.cat((Sdb, -4*torch.ones((self.l-l,ndim))),dim=0)
+        t = torch.zeros((ntag))
+        for k in row['rags']:
+            t[k] = 1
+        x = x.view((1,-1,ndim))
+        return x, t
+
 
 class BertModel(nn.Module):
     def __init__(self,ndim=ndim,ntag=ntag,npos=8):
