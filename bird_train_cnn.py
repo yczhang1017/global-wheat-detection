@@ -96,17 +96,6 @@ class TrainData(Dataset):
         if image: x = x.view((1,-1,ndim))
         return x,t
 
-
-def adjust_learning_rate(optimizer, e, lr0=1e-5, warmup = 6, Tmax=epoch):
-    lrs = [1e-2,1e-2,1e-3,1e-3,1e-4,1e-4]
-    if e < warmup:
-        lr = lrs[e]
-    else:
-        lr = lr0/2*(1+np.cos((e-warmup)*np.pi/(Tmax-warmup)))
-    print(f'learnig rate = {lr:1.2e}')
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
 class BertModel(nn.Module):
     def __init__(self,ndim=ndim,ntag=ntag,npos=8):
         super(BertModel, self).__init__()
@@ -159,7 +148,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.SGD(model.parameters(),lr=1e-2,weight_decay=1e-3)
+    optimizer = torch.optim.SGD(model.parameters(),lr=1e-4,weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1,3,5,10,15,20,25], gamma=0.3)
     best_acc = 0
     for e in range(epoch):
@@ -173,7 +162,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
         for phase in ['train','val']:
             if phase == 'train':
                 model.train()
-                #adjust_learning_rate(optimizer,e)
             else:
                 model.eval()
             sum_loss = 0
