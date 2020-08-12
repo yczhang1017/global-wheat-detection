@@ -18,11 +18,11 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(description='Train ResNeSt for bird call')
 parser.add_argument('-d','--data', default='.', help='data directory')
-parser.add_argument('-e','--epoch', default=30, help='number of epoch')
+parser.add_argument('-e','--epoch', default=40, help='number of epoch')
 parser.add_argument('-l','--length', default=1271, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
-parser.add_argument('-m','--milestones', default="1,3,5,10,15,20,25" ,help='number of epoch')
+parser.add_argument('-m','--milestones', default="5,10,15,20,25,30,35" ,help='number of epoch')
 parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
 
 
