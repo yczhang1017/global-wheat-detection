@@ -148,7 +148,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.Adam(model.parameters(),lr=1e-3,weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(),lr=1e-5,weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1,3,5,10,15,20,25], gamma=0.3)
     best_acc = 0
     for e in range(epoch):
