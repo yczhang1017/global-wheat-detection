@@ -97,8 +97,10 @@ class TrainData(Dataset):
         return x,t
 
 
-def adjust_learning_rate(optimizer, e, lr0=1e-3, warmup = 2, Tmax=epoch):
-    if e < warmup:
+def adjust_learning_rate(optimizer, e, lr0=1e-6, warmup = 2, Tmax=epoch):
+    if e < 1:
+        lr = 10*lr0
+    elif e < warmup:
         lr = lr0
     else:
         lr = lr0/2*(1+np.cos((e-warmup)*np.pi/(Tmax-warmup)))
@@ -158,7 +160,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.Adam(model.parameters(),lr=1e-6,weight_decay=1e-3)
+    optimizer = torch.optim.SGD(model.parameters(),lr=1e-6,weight_decay=1e-3)
     best_acc = 0
     for e in range(epoch):
         """
