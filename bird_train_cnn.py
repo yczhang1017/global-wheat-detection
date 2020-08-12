@@ -1,5 +1,5 @@
 import os
-import sys
+#import sys
 import random
 import numpy as np
 import pandas as pd
@@ -125,8 +125,6 @@ class BertModel(nn.Module):
         x = self.encoder(x)
         y = self.fc(x).mean(1)
         return y
-
-
 
 class FocalLoss(nn.Module):
     def __init__(self, gamma=2, reduce=True, weight=None ):
