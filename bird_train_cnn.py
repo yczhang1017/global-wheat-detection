@@ -35,7 +35,6 @@ df_train = pd.read_csv(root/'train.csv')
 df_test = pd.read_csv(root/'test.csv')
 df_example = pd.read_csv(root/'example_test_audio_summary.csv')
 df_example["birds"].fillna(".", inplace = True)
-df_example['tags'] =df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def set_seed(seed = 42):
     random.seed(seed)
@@ -74,6 +73,8 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
+df_example['tags'] =df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
+
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
