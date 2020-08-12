@@ -13,11 +13,26 @@ from sklearn.model_selection import StratifiedKFold
 #import ast
 #import librosa
 #import librosa.display
- 
-root = sys.argv[1] if len(sys.argv)>1 else './'
-os.chdir(root)
-df_train = pd.read_csv('train.csv')
-df_test = pd.read_csv('test.csv')
+import argparse
+from pathlib import Path
+
+parser = argparse.ArgumentParser(description='Train ResNeSt for bird call')
+parser.add_argument('-d','--data', default='.', help='data directory')
+parser.add_argument('-e','--epoch', default=30, help='number of epoch')
+parser.add_argument('-l','--length', default=1271, help='length of sequence')
+parser.add_argument('--lr', default=1e-5, help='learnig rate')
+parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
+parser.add_argument('-m','--milestones', default="1,3,5,10,15,20,25" ,help='number of epoch')
+parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
+
+
+args = parser.parse_args()
+
+ndim = 128
+batch_size = 32
+root = Path(args.data)
+df_train = pd.read_csv(root/'train.csv')
+df_test = pd.read_csv(root/'test.csv')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def set_seed(seed = 42):
@@ -56,15 +71,12 @@ for idx, row in df_train.iterrows():
         tag += 1
     
 ntag = len(tag2code)
-ndim = 128
-batch_size = 32
-epoch = 30
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
-    def __init__(self, df, indices, mosaic=(1,3), l = 821):
+    def __init__(self, df, indices, mosaic=(1,3), l = args.length):
         self.df = df
         self.indices = indices
         self.mosaic = mosaic
@@ -80,7 +92,7 @@ class TrainData(Dataset):
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
         for i, row in enumerate(rows):
-            filename = os.path.join('tensors', row['filename'][:-3]+'pt')
+            filename = root/'tensors'/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
@@ -134,9 +146,8 @@ class FocalLoss(nn.Module):
         
 skf = StratifiedKFold(n_splits=5)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
-    save =f'ResNeSt{ifold}'
-    if not os.path.exists(save):
-        os.mkdir(save)
+    save = root/f'ResNeSt{ifold}'
+    if not save.exists(): save.mkdir()
     dataset = {'train':TrainData(df_train, train_indices),
                 'val':TrainData(df_train, val_indices)}
     data_loader = {x: DataLoader(dataset[x],
@@ -148,10 +159,23 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.Adam(model.parameters(),lr=1e-5,weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1,3,5,10,15,20,25], gamma=0.3)
+    optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
     best_acc = 0
-    for e in range(epoch):
+    start = -1
+    if args.restart:
+        restart = args.restart.split(':')
+        if len(restart) == 1: 
+            start = int(restart[0])
+            checkpoint = save/f'weight_{start}.pt'
+        elif len(restart) == 2:
+            start, checkpoint = int(restart[0]), restart[1]
+        else:
+            exit(1)
+        model.load_state(torch.load(checkpoint, map_location=device))
+        for i in range(start+1): scheduler.step()
+    
+    for e in range(start+1,args.epoch):
         """
         if e == stage:
             dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
@@ -170,7 +194,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             sum_fn = 0
             sum_fp = 0
             t0 = time()
-            print(f'fold{ifold}|{e}/{epoch}:{phase}')
+            print(f'fold{ifold}|{e}/{args.epoch}:{phase}')
             for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
@@ -199,7 +223,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 if i%10==0: 
                     print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{thresh:1.4f}')
             print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}')
-        torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
+        torch.save(model.state_dict(), save/f'weight_{e}.pt')
         scheduler.step()
 
     break #ifold
