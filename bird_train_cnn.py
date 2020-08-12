@@ -159,7 +159,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.SGD(model.parameters(),lr=1e-6,weight_decay=1e-3)
+    optimizer = torch.optim.SGD(model.parameters(),lr=1e-2,weight_decay=1e-3)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1,3,5,10,15,20,25], gamma=0.3)
     best_acc = 0
     for e in range(epoch):
         """
@@ -172,7 +173,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
         for phase in ['train','val']:
             if phase == 'train':
                 model.train()
-                adjust_learning_rate(optimizer,e)
+                #adjust_learning_rate(optimizer,e)
             else:
                 model.eval()
             sum_loss = 0
@@ -190,7 +191,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
-                sum_loss += loss.item()
+                sum_loss += loss.item()*x.shape[0] 
                 sum_tot += x.shape[0] 
                 if False:
                     pred = y.argmax(1)
@@ -198,7 +199,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     sum_fp += len(t)                    
                     sum_fn += len(pred)
                 else:
-                    y =  torch.sigmoid(y)
+                    y = torch.sigmoid(y)
                     top, _ = y.topk(3,1)
                     thresh = top[:,-1].mean().item()
                     pred = y > thresh
@@ -211,5 +212,6 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
                     print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{thresh:1.4f}')
             print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}')
         torch.save(model.state_dict(), os.path.join(save,'weight_{}.pt'.format(e)))
+        scheduler.step()
 
     break #ifold
