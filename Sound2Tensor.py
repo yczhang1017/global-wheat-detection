@@ -13,15 +13,16 @@ mel_parameters = {
 }    
 
 import argparse
-
 parser = argparse.ArgumentParser(description='Convert mp3 to tensor')
 parser.add_argument('-d','--data', default='.', help='data directory')
 parser.add_argument('-j','--job', default='example,train', help='jobs to convert')
 parser.add_argument('-s','--save', default='tensors', help='output folder name')
 parser.add_argument('--sr', default=44100, help='sample rate')
+args = parser.parse_args()
 
 root = Path(args.data)
 save = root/args.save
+if not save.exist(): save.mkdir()
 def sound2tensor(filename, form='mp3', ndim=128, sr = args.sr):
     if form== 'mp3':
         audio = AudioSegment.from_mp3(filename)
