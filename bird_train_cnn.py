@@ -1,4 +1,4 @@
-import os
+honimport os
 #import sys
 import random
 import numpy as np
@@ -19,7 +19,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description='Train ResNeSt for bird call')
 parser.add_argument('-d','--data', default='.', help='data directory')
 parser.add_argument('-e','--epoch', default=40, help='number of epoch')
-parser.add_argument('-l','--length', default=821, help='length of sequence')
+parser.add_argument('-l','--length', default=1293, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
 parser.add_argument('-m','--milestones', default="5,10,15,20,25,30,35" ,help='number of epoch')
@@ -132,8 +132,8 @@ class ExampleData(Dataset):
         t = torch.zeros((ntag))
         for i, idx in enumerate(ids):
             row = self.df.loc[idx]
-            
-            Sdb = torch.load(root/'example_tensors'/(row['filename_seconds']+'.pt'))
+            filename = root/'example_tensors'/(row['filename_seconds']+'.pt')
+            Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
             c = self.l-cur if i==mosaic-1 else int(self.l // mosaic * random.uniform(0.8,1.2)) 
