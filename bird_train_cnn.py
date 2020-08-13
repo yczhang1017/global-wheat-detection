@@ -82,6 +82,7 @@ class TrainData(Dataset):
     def __init__(self, df, indices, mosaic=(1,3), l = args.length):
         self.df = df
         self.indices = indices
+        print(np.array(self.indices).max())
         self.mosaic = mosaic
         self.l = l
     def __len__(self):
@@ -95,11 +96,9 @@ class TrainData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
+        print(ids)
         for i, idx in enumerate(ids):
-            try:
-                row = self.df.loc[idx]
-            except:
-                print(idx)
+            row = self.df.loc[idx]
             filename = root/'tensors'/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
