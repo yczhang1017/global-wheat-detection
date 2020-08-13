@@ -82,7 +82,6 @@ class TrainData(Dataset):
     def __init__(self, df, indices, mosaic=(1,3), l = args.length):
         self.df = df
         self.indices = indices
-        print(np.array(self.indices).max())
         self.mosaic = mosaic
         self.l = l
     def __len__(self):
@@ -91,7 +90,7 @@ class TrainData(Dataset):
         ids = [self.indices[idx]]
         mosaic = random.randint(*self.mosaic)
         for i in range(mosaic-1):
-            ids += random.choice(self.indices)
+            ids += [random.choice(self.indices)]
         
         cur = 0
         x = -4*torch.ones((self.l,ndim))
