@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader, ConcatDataset
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
 from sklearn.model_selection import StratifiedKFold
+from ranger import Ranger
 #import ast
 #import librosa
 #import librosa.display
@@ -199,7 +200,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     model.fc = nn.Linear(2048,ntag)
     model.to(device)
     criterion = FocalLoss(weight=weight).cuda()
-    optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
+    #optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
+    optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
     best_acc = 0
     start = -1
