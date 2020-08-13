@@ -112,7 +112,6 @@ class TrainData(Dataset):
             t[row['tag']] = 1    
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        print(ids, valid_len, t.sum().item())
         return x,t
 
 class ExampleData(Dataset):
@@ -146,7 +145,6 @@ class ExampleData(Dataset):
             for k in row['tags']: t[k] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        print(idx, valid_len, t.sum().item())
         return x, t
 
 
