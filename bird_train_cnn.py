@@ -6,7 +6,7 @@ import pandas as pd
 
 import torch 
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
 from sklearn.model_selection import StratifiedKFold
@@ -95,7 +95,6 @@ class TrainData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
-        print(ids)
         for i, idx in enumerate(ids):
             row = self.df.loc[idx]
             filename = root/'tensors'/(row['filename'][:-3]+'pt')
@@ -117,7 +116,7 @@ class TrainData(Dataset):
         print(ids, valid_len, t.sum().item())
         return x,t
 
-class exampleData(Dataset):
+class ExampleData(Dataset):
     def __init__(self, l = args.length):
         self.df = df_example
         self.l = l
@@ -174,7 +173,9 @@ skf = StratifiedKFold(n_splits=5)
 for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
     save = root/f'ResNeSt{ifold}'
     if not save.exists(): save.mkdir()
-    dataset = {'train':TrainData(df_train, train_indices),
+    trainset1 = TrainData(df_train, train_indices)
+    trainset2 = ExampleData()
+    dataset = {'train': ConcatDataset(trainset1, trainset2),
                 'val':TrainData(df_train, val_indices)}
     data_loader = {x: DataLoader(dataset[x],
             batch_size=batch_size, shuffle = (x=='train'),
