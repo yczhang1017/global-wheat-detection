@@ -86,7 +86,7 @@ class TrainData(Dataset):
         self.l = l
     def __len__(self):
         return len(self.indices)
-    def __getitem__(self, idx, encode_tag = True, image = True):
+    def __getitem__(self, idx):
         ids = [self.indices[idx]]
         mosaic = random.randint(*self.mosaic)
         for i in range(mosaic-1):
@@ -105,33 +105,48 @@ class TrainData(Dataset):
             if l > c:
                 s = random.randrange(0,l-c)
                 x[cur:cur+c,:] = Sdb[s:s+c,:]
-            elif l < self.l:
+            else:
                 x[cur:cur+l,:] = Sdb
             cur = c 
             if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
-        if image: x = x.view((1,-1,ndim))
-        
+        x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
         print(ids, valid_len, t.sum().item())
         return x,t
 
 class ExampleData(Dataset):
-    def __init__(self, l = args.length):
+    def __init__(self, mosaic=(3,3), l = args.length):
         self.df = df_example
+        self.mosaic = mosaic
         self.l = l
     def __len__(self):
         return len(self.df)
     def __getitem__(self,idx):
-        row = self.df.loc[idx]
-        Sdb = torch.load(root/'example_tensors'/(row['filename_seconds']+'.pt'))
-        l = Sdb.shape[0]
-        Sdb = (Sdb+20)/12
-        x = torch.cat((Sdb, -4*torch.ones((self.l-l,ndim))),dim=0)
+        ids = [idx]
+        mosaic = random.randint(*self.mosaic)
+        for i in range(2):
+            ids += [random.randrange(len(self.df))]
+        cur = 0
+        x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
-        for k in row['rags']:
-            t[k] = 1
+        for i, idx in enumerate(ids):
+            row = self.df.loc[idx]
+            
+            Sdb = torch.load(root/'example_tensors'/(row['filename_seconds']+'.pt'))
+            Sdb = (Sdb+20)/12
+            l = Sdb.shape[0]
+            c = self.l-cur if i==mosaic-1 else int(self.l // mosaic * random.uniform(0.8,1.2)) 
+            if l > c:
+                s = random.randrange(0,l-c)
+                x[cur:cur+c,:] = Sdb[s:s+c,:]
+            else:
+                x[cur:cur+l,:] = Sdb
+            cur = c 
+            for k in row['tags']: t[k] = 1
         x = x.view((1,-1,ndim))
+        valid_len = (x>-4).sum().item()/ndim
+        print(idx, valid_len, t.sum().item())
         return x, t
 
 
