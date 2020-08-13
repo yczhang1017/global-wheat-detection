@@ -22,7 +22,7 @@ parser.add_argument('-e','--epoch', default=40, help='number of epoch')
 parser.add_argument('-l','--length', default=1293, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
-parser.add_argument('-m','--milestones', default="5,10,15,20,25,30,35" ,help='number of epoch')
+parser.add_argument('-m','--milestones', default="3,5,8,12,15,18,21,24,27,30,33,36" ,help='number of epoch')
 parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
 
 
