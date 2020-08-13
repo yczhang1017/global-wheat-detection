@@ -55,7 +55,7 @@ def convertExample(df):
         duration = math.ceil(len(audio)/1000)
         for s in range(5,duration,5):
             sample = audio[(s-5)*1000:s*1000].set_frame_rate(args.sr).get_array_of_samples()
-            torch.save(sample2tensor(sample), save/(f.stem+'_'+str(s)+'.pt'))
+            torch.save(sample2tensor(sample), save/(f.stem.split('.')[0]+'_'+str(s)+'.pt'))
 
 jobs= args.job.split(',')
 if "train" in jobs:
