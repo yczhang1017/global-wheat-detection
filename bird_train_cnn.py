@@ -96,7 +96,10 @@ class TrainData(Dataset):
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
         for i, idx in enumerate(ids):
-            row = self.df.loc[idx]
+            try:
+                row = self.df.loc[idx]
+            except:
+                print(idx)
             filename = root/'tensors'/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
@@ -112,7 +115,7 @@ class TrainData(Dataset):
             t[row['tag']] = 1    
         if image: x = x.view((1,-1,ndim))
         
-        valid_len = (x>-4).sum().item()
+        valid_len = (x>-4).sum().item()/ndim
         print(ids, valid_len, t.sum().item())
         return x,t
 
@@ -123,7 +126,7 @@ class exampleData(Dataset):
     def __len__(self):
         return len(self.df)
     def __getitem__(self,idx):
-        row = self.df.iloc[idx]
+        row = self.df.loc[idx]
         Sdb = torch.load(root/'example_tensors'/(row['filename_seconds']+'.pt'))
         l = Sdb.shape[0]
         Sdb = (Sdb+20)/12
