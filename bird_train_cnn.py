@@ -175,7 +175,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     if not save.exists(): save.mkdir()
     trainset1 = TrainData(df_train, train_indices)
     trainset2 = ExampleData()
-    dataset = {'train': ConcatDataset(trainset1, trainset2),
+    dataset = {'train': ConcatDataset((trainset1, trainset2)),
                 'val':TrainData(df_train, val_indices)}
     data_loader = {x: DataLoader(dataset[x],
             batch_size=batch_size, shuffle = (x=='train'),
