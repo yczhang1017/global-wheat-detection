@@ -11,14 +11,12 @@ import pandas as pd
 import argparse
 parser = argparse.ArgumentParser(description='Convert mp3 to tensor')
 parser.add_argument('-d','--data', default='.', help='data directory')
-parser.add_argument('-j','--job', default='example,train', help='jobs to convert')
-parser.add_argument('-s','--save', default='tensors', help='output folder name')
+parser.add_argument('-j','--job', default=None, help='jobs to convert')
+#parser.add_argument('-s','--save', default='tensors', help='output folder name')
 parser.add_argument('--sr', default=44100, help='sample rate')
 args = parser.parse_args()
 
 root = Path(args.data)
-save = root/args.save
-if not save.exists(): save.mkdir()
 
 mel_parameters = {
     "fmin": 40,
@@ -38,7 +36,7 @@ def sound2tensor(filename, form='mp3'):
     sample = audio.set_channels(1).set_frame_rate(args.sr).get_array_of_samples()
     return sample2tensor(sample)
 
-def df2tensor(df,form='mp3'):
+def df2tensor(df,save,form='mp3'):
     for i,r in tqdm(df.iterrows(), total = len(df)):
         t = r['ebird_code']
         f = r['filename'] 
@@ -48,7 +46,7 @@ def df2tensor(df,form='mp3'):
             print(f'{f} cannot be decoded')
         torch.save(x, save/(f[:-3]+'pt'))
             
-def convertExample(df):
+def convertExample(df,save):
     folder = root/'example_test_audio'
     for f in folder.iterdir():
         audio = AudioSegment.from_mp3(f).set_channels(1)
@@ -59,15 +57,25 @@ def convertExample(df):
 
 jobs= args.job.split(',')
 if "train" in jobs:
+    save = root/"train_tensors"
+    if not save.exists(): save.mkdir()
     df = pd.read_csv(root/'train.csv')
     df1 = df[df['file_type'] == 'wav']
     df2 = df[df['file_type'] == 'aac']
     df3 = df[np.logical_or(df['file_type'] == 'mp3', df['file_type'] == 'mp4')]
-    df2tensor(df1,'wav')
-    df2tensor(df2,'aac')
+    df2tensor(df1,save,'wav')
+    df2tensor(df2,save,'aac')
 if "example" in jobs:
+    save = root/"example_tensors"
+    if not save.exists(): save.mkdir()
     df = pd.read_csv(root/'example_test_audio_summary.csv')
-    convertExample(df)
+    convertExample(df, save)
+if "extended" in jobs:
+    save = root/"extended_tensors"
+    if not save.exists(): save.mkdir()
+    df = pd.read_csv(root/'train_extended.csv')
+    df2tensor(df,save)
+    
 
 #df2tensor(df2,'mp3')
 
