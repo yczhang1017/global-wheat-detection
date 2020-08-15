@@ -79,7 +79,7 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
-df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in ast.literal_eval(x)])
+df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in ast.literal_eval(x) if l in label2tag])
 df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 
 
@@ -120,9 +120,8 @@ class TrainData(Dataset):
             cur = c 
             if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
-            target_weight[row['tag']] = 4
-            for ti in row['secondary_tags']:
-                t[ti] = 1
+            target_weight[row['tag']] = 3
+            t[row['secondary_tags']] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
         return x,t, target_weight
@@ -156,7 +155,7 @@ class ExampleData(Dataset):
             else:
                 x[cur:cur+l,:] = Sdb
             cur = c 
-            for k in row['tags']: t[k] = 1
+            t[row['tags']] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
         return x, t, target_weight
