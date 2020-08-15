@@ -82,8 +82,7 @@ df_train['tag'] = df_train['ebird_code'].map(code2tag)
 df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in ast.literal_eval(x) if l in label2tag])
 df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 
-
-ndist = df_train.groupby('tag').count()['rating'].values
+ndist = df_train.groupby('tag').count()['filename'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
 class TrainData(Dataset):
