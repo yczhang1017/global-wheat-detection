@@ -215,7 +215,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     #optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
     optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
     #scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
-    scheduler = torch.CosineAnnealingLR(model.parameters(),args.epoch)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model.parameters(),args.epoch)
     best_acc = 0
     start = -1
     if args.restart:
