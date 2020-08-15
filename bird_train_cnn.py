@@ -67,17 +67,18 @@ label2tag = {}
 tag2code = []
 
 tag = 0
-for idx, row in df_train1.iterrows():
+for idx, row in df_train.iterrows():
     label = row['primary_label'] 
     code = row['ebird_code']
-    if label not in label2code.keys():
-        label2code[label] = code
-        label2tag[label] = tag
     if code not in code2tag.keys():
         code2label[code] = label
         code2tag[code] = tag
         tag2code += [code]
         tag += 1
+    if label not in label2code.keys():
+        label2code[label] = code
+        label2tag[label] = code2tag[code]
+    
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
