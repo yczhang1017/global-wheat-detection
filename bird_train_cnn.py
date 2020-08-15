@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from time import time
 from sklearn.model_selection import StratifiedKFold
 from ranger import Ranger
-#import ast
+import ast
 #import librosa
 #import librosa.display
 import argparse
@@ -79,7 +79,7 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
-df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in x])
+df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in ast.literal_eval(x)])
 df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 
 
