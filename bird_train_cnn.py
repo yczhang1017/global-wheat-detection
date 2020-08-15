@@ -32,11 +32,10 @@ args = parser.parse_args()
 ndim = 128
 batch_size = 32
 root = Path(args.data)
-df_train1 = pd.read_csv(root/'train.csv')
-df_train1 = df_train1[['ebird_code', 'filename', 'secondary_label', 'primary_label']]
+cols = ['ebird_code', 'filename', 'secondary_labels', 'primary_label']
+df_train1 = pd.read_csv(root/'train.csv', usecols=cols)
 ext_start = len(df_train1)
-df_train2 = pd.read_csv(root/'train_extended.csv')
-df_train2 = df_train2[['ebird_code', 'filename', 'secondary_label', 'primary_label']]
+df_train2 = pd.read_csv(root/'train_extended.csv', usecols=cols)
 df_train = pd.concat([df_train1,df_train2])
 
 df_test = pd.read_csv(root/'test.csv')
@@ -80,7 +79,7 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
-df_train['secondary_tags'] = df_train['secondary_label'].map(lambda x: [label2tag[l] for l in x])
+df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in x])
 df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 
 
