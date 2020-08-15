@@ -104,7 +104,7 @@ class TrainData(Dataset):
         t = torch.zeros((ntag))
         target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
-            row = self.df.loc[idx]
+            row = self.df.iloc[idx]
             pre = root/'tensors' if idx < ext_start else root/'extended_tensors'
             filename = pre/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
@@ -142,7 +142,7 @@ class ExampleData(Dataset):
         t = torch.zeros((ntag))
         target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
-            row = self.df.loc[idx]
+            row = self.df.iloc[idx]
             filename = root/'example_tensors'/(row['filename_seconds']+'.pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
