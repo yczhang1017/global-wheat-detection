@@ -19,11 +19,11 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(description='Train ResNeSt for bird call')
 parser.add_argument('-d','--data', default='.', help='data directory')
-parser.add_argument('-e','--epoch', default=40, help='number of epoch')
+parser.add_argument('-e','--epoch', default=42, help='number of epoch')
 parser.add_argument('-l','--length', default=1293, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
-#parser.add_argument('-m','--milestones', default="3,5,8,12,15,18,21,24,27,30,33,36" ,help='number of epoch')
+parser.add_argument('-m','--milestones', default="4,8,12,16,20,24,28,32,36,39" ,help='number of epoch')
 parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
 
 
@@ -105,7 +105,7 @@ class TrainData(Dataset):
         target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
             row = self.df.loc[idx]
-            pre = root/'tensors' if idx < len(ext_start) else root/'extended_tensors'
+            pre = root/'tensors' if idx < ext_start else root/'extended_tensors'
             filename = pre/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
@@ -214,8 +214,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     criterion = FocalLoss(weight=weight).cuda()
     #optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
     optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
-    #scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,args.epoch)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
+    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,args.epoch)
     best_acc = 0
     start = -1
     if args.restart:
