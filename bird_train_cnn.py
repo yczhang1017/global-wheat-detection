@@ -67,14 +67,15 @@ label2tag = {}
 tag2code = []
 
 tag = 0
-for idx, row in df_train.iterrows():
+for idx, row in df_train1.iterrows():
     label = row['primary_label'] 
     code = row['ebird_code']
     if label not in label2code.keys():
         label2code[label] = code
+        label2tag[label] = tag
+    if code not in code2tag.keys():
         code2label[code] = label
         code2tag[code] = tag
-        label2tag[label] = tag
         tag2code += [code]
         tag += 1
     
