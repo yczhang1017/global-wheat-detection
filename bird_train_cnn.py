@@ -6,6 +6,7 @@ import pandas as pd
 
 import torch 
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
@@ -186,7 +187,7 @@ class FocalLoss(nn.Module):
         self.weight = weight
 
     def forward(self, inputs, targets, target_weight):
-        BCE_loss = torch.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight, reduction='none')
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight, reduction='none')
         BCE_loss = (BCE_loss * target_weight).mean(1)
         pt = torch.exp(-BCE_loss).detach()
         F_loss = (1-pt)**self.gamma * BCE_loss
