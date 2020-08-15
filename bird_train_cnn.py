@@ -23,7 +23,7 @@ parser.add_argument('-e','--epoch', default=40, help='number of epoch')
 parser.add_argument('-l','--length', default=1293, help='length of sequence')
 parser.add_argument('--lr', default=1e-5, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
-parser.add_argument('-m','--milestones', default="3,5,8,12,15,18,21,24,27,30,33,36" ,help='number of epoch')
+#parser.add_argument('-m','--milestones', default="3,5,8,12,15,18,21,24,27,30,33,36" ,help='number of epoch')
 parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
 
 
@@ -32,7 +32,13 @@ args = parser.parse_args()
 ndim = 128
 batch_size = 32
 root = Path(args.data)
-df_train = pd.read_csv(root/'train.csv')
+df_train1 = pd.read_csv(root/'train.csv')
+df_train1 = df_train1[['ebird_code', 'filename', 'secondary_label', 'primary_label']]
+ext_start = len(df_train1)
+df_train2 = pd.read_csv(root/'train_extended.csv')
+df_train2 = df_train2[['ebird_code', 'filename', 'secondary_label', 'primary_label']]
+df_train = pd.concat([df_train1,df_train2])
+
 df_test = pd.read_csv(root/'test.csv')
 df_example = pd.read_csv(root/'example_test_audio_summary.csv')
 df_example["birds"].fillna(".", inplace = True)
@@ -74,7 +80,9 @@ for idx, row in df_train.iterrows():
     
 ntag = len(tag2code)
 df_train['tag'] = df_train['ebird_code'].map(code2tag)
-df_example['tags'] =df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
+df_train['secondary_tags'] = df_train['secondary_label'].map(lambda x: [label2tag[l] for l in x])
+df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
+
 
 ndist = df_train.groupby('tag').count()['rating'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
@@ -96,9 +104,11 @@ class TrainData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
+        target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
             row = self.df.loc[idx]
-            filename = root/'tensors'/(row['filename'][:-3]+'pt')
+            pre = root/'tensors' if idx < len(ext_start) else root/'extended_tensors'
+            filename = pre/(row['filename'][:-3]+'pt')
             Sdb = torch.load(filename)
             Sdb = (Sdb+20)/12
             l = Sdb.shape[0]
@@ -111,9 +121,12 @@ class TrainData(Dataset):
             cur = c 
             if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
+            target_weight[row['tag']] = 4
+            for ti in row['secondary_tags']:
+                t[ti] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        return x,t
+        return x,t, target_weight
 
 class ExampleData(Dataset):
     def __init__(self, mosaic=(3,3), l = args.length):
@@ -130,6 +143,7 @@ class ExampleData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
+        target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
             row = self.df.loc[idx]
             filename = root/'example_tensors'/(row['filename_seconds']+'.pt')
@@ -146,7 +160,7 @@ class ExampleData(Dataset):
             for k in row['tags']: t[k] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        return x, t
+        return x, t, target_weight
 
 
 class BertModel(nn.Module):
@@ -174,8 +188,9 @@ class FocalLoss(nn.Module):
         self.reduce = reduce
         self.weight = weight
 
-    def forward(self, inputs, targets):
-        BCE_loss = torch.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight)
+    def forward(self, inputs, targets, target_weight):
+        BCE_loss = torch.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight, reduction=False)
+        BCE_loss = (BCE_loss * target_weight).mean(1)
         pt = torch.exp(-BCE_loss).detach()
         F_loss = (1-pt)**self.gamma * BCE_loss
         if self.reduce:
@@ -202,7 +217,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
     criterion = FocalLoss(weight=weight).cuda()
     #optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
     optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
+    #scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
+    scheduler = torch.CosineAnnealingLR(model.parameters(),args.epoch)
     best_acc = 0
     start = -1
     if args.restart:
@@ -237,11 +253,12 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             sum_fp = 0
             t0 = time()
             print(f'fold{ifold}|{e}/{args.epoch}:{phase}')
-            for i,(x,t) in enumerate(data_loader[phase]):
+            for i,(x,t,target_weight) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
+                target_weight = target_weight.to(device)
                 y = model(x)-2
-                loss = criterion(y, t)
+                loss = criterion(y, t, target_weight)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
