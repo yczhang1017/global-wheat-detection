@@ -105,7 +105,7 @@ class TrainData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
-        target_weight = torch.ones((ntag))
+        #target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
             row = self.df.iloc[idx]
             pre = root/'tensors' if idx < ext_start else root/'extended_tensors'
@@ -122,11 +122,11 @@ class TrainData(Dataset):
             cur = c 
             if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
-            target_weight[row['tag']] = 3
+            #target_weight[row['tag']] = 3
             t[row['secondary_tags']] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        return x,t, target_weight
+        return x,t
 
 class ExampleData(Dataset):
     def __init__(self, mosaic=(3,3), l = args.length):
@@ -143,7 +143,7 @@ class ExampleData(Dataset):
         cur = 0
         x = -4*torch.ones((self.l,ndim))
         t = torch.zeros((ntag))
-        target_weight = torch.ones((ntag))
+        #target_weight = torch.ones((ntag))
         for i, idx in enumerate(ids):
             row = self.df.iloc[idx]
             filename = root/'example_tensors'/(row['filename_seconds']+'.pt')
@@ -160,7 +160,7 @@ class ExampleData(Dataset):
             t[row['tags']] = 1
         x = x.view((1,-1,ndim))
         valid_len = (x>-4).sum().item()/ndim
-        return x, t, target_weight
+        return x, t
 
 
 class BertModel(nn.Module):
@@ -188,9 +188,8 @@ class FocalLoss(nn.Module):
         self.reduce = reduce
         self.weight = weight
 
-    def forward(self, inputs, targets, target_weight):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight, reduction='none')
-        BCE_loss = (BCE_loss * target_weight).mean(1)
+    def forward(self, inputs, targets):
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight)
         pt = torch.exp(-BCE_loss).detach()
         F_loss = (1-pt)**self.gamma * BCE_loss
         if self.reduce:
@@ -253,12 +252,12 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             sum_fp = 0
             t0 = time()
             print(f'fold{ifold}|{e}/{args.epoch}:{phase}')
-            for i,(x,t,target_weight) in enumerate(data_loader[phase]):
+            for i,(x,t) in enumerate(data_loader[phase]):
                 x = x.to(device)
                 t = t.to(device)
-                target_weight = target_weight.to(device)
+                #target_weight = target_weight.to(device)
                 y = model(x)-2
-                loss = criterion(y, t, target_weight)
+                loss = criterion(y, t)
                 with torch.set_grad_enabled(phase == 'train'):
                     loss.backward()
                     optimizer.step()
