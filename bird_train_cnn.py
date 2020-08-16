@@ -189,7 +189,7 @@ class FocalLoss(nn.Module):
         self.weight = weight
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight)
+        BCE_loss = torch.binary_cross_entropy_with_logits(inputs,targets,pos_weight=self.weight)
         pt = torch.exp(-BCE_loss).detach()
         F_loss = (1-pt)**self.gamma * BCE_loss
         if self.reduce:
