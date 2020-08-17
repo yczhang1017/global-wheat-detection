@@ -212,6 +212,8 @@ for ifold, (ids2t, ids2v) in enumerate(skf.split(ids2, df_train['tag'])):
     trainset5 = TrainData(df_train, ids3, mosaic=(1,1), l = args.length*4+1)
     valset = TrainData(df_train, ids2v, mosaic=(1,1), l = args.length)
     
+    print(f'trainsets:{len(trainset1)},{len(trainset2)},{len(trainset3)},{len(trainset4)},{len(trainset5)}')
+    
     dataset = {'train1': ConcatDataset((trainset1, trainset2, trainset3)),
                'train2': ConcatDataset((trainset4, trainset5)),
                 'val':valset}
