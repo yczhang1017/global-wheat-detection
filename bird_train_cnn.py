@@ -24,7 +24,7 @@ parser.add_argument('-e','--epoch', default=42, help='number of epoch')
 parser.add_argument('-l','--length', default=1293, help='length of sequence')
 parser.add_argument('--lr', default=1e-6, help='learnig rate')
 parser.add_argument('-r','--restart', default=None, help='restart epoch:dict_file')
-parser.add_argument('-m','--milestones', default="4,8,12,16,20,24,28,32,36,39" ,help='number of epoch')
+parser.add_argument('-m','--milestones', default="3,6,9,12,15,18,21,24,27,30,33,36,39" ,help='number of epoch')
 parser.add_argument('-g','--gamma', default=0.3 ,help='number of epoch')
 
 
@@ -89,9 +89,11 @@ ids1 = df_train.index[df_train['duration']<15]
 ids2 = df_train.index[(df_train['duration']>=15) & (df_train['duration']<45)]
 ids3 = df_train.index[df_train['duration']>45]
 ndist = df_train.groupby('tag').count()['filename'].values
-weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
+weight = np.exp(((100/ndist)-1)/10)
 with np.printoptions(precision=3, suppress=True):
     print(f'weight:{weight.numpy()}')
+weight = torch.tensor(weight, dtype=torch.float).to(device)
+
 
 class TrainData(Dataset):
     def __init__(self, df, indices, mosaic=(1,3), l = args.length):
