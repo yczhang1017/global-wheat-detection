@@ -91,7 +91,7 @@ ids3 = df_train.index[df_train['duration']>45]
 ndist = df_train.groupby('tag').count()['filename'].values
 weight = np.exp(((100/ndist)-1)/10)
 with np.printoptions(precision=3, suppress=True):
-    print(f'weight:{weight.numpy()}')
+    print(f'weight:{weight}')
 weight = torch.tensor(weight, dtype=torch.float).to(device)
 
 
