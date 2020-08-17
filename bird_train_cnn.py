@@ -90,8 +90,8 @@ ids2 = df_train.index[(df_train['duration']>=15) & (df_train['duration']<45)]
 ids3 = df_train.index[df_train['duration']>45]
 ndist = df_train.groupby('tag').count()['filename'].values
 weight = np.exp(((ndist.max()/ndist)-1)/10)
-print('ndist range: [{},{}]'.foramt(ndist.min(),ndist.max()))
-print('weight range: [{},{}]'.foramt(weight.min(),weight.max()))
+print('ndist range: [{},{}]'.format(ndist.min(),ndist.max()))
+print('weight range: [{},{}]'.format(weight.min(),weight.max()))
 with np.printoptions(precision=3, suppress=True):
     print(f'weight:{weight}')
 weight = torch.tensor(weight, dtype=torch.float).to(device)
