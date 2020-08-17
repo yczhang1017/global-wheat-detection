@@ -89,7 +89,7 @@ ids1 = df_train.index[df_train['duration']<15]
 ids2 = df_train.index[(df_train['duration']>=15) & (df_train['duration']<45)]
 ids3 = df_train.index[df_train['duration']>45]
 ndist = df_train.groupby('tag').count()['filename'].values
-weight = np.exp(((ndist.max()/ndist)-1)/10)
+weight = np.exp(((100/ndist)-1)/10)
 #weight = (ndist.max()/ndist)**0.2
 print(f'ndist range: [{ndist.min()},{ndist.max()}]')
 print(f'weight range: [{weight.min()},{weight.max()}]')
