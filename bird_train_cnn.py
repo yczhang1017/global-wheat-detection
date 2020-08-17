@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
 #from torch.nn.utils.rnn import pad_sequence
 from time import time
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import train_test_split
 from ranger import Ranger
 import ast
 #import librosa
@@ -200,101 +200,101 @@ class FocalLoss(nn.Module):
         else:
             return F_loss
         
-skf = StratifiedKFold(n_splits=5)
-for ifold, (ids2t, ids2v) in enumerate(skf.split(ids2, df_train['tag'])):
-    save = root/f'ResNeSt{ifold}'
-    if not save.exists(): save.mkdir()
-    trainset1 = TrainData(df_train, ids1, mosaic=(1,3), l = args.length)
-    trainset2 = TrainData(df_train, ids2t, mosaic=(1,1), l = args.length)
-    trainset3 = ExampleData(df_example,  mosaic=(3,3), l = args.length)
-    
-    trainset4 = TrainData(df_train, ids2t, mosaic=(1,2), l = args.length*4+1)
-    trainset5 = TrainData(df_train, ids3, mosaic=(1,1), l = args.length*4+1)
-    valset = TrainData(df_train, ids2v, mosaic=(1,1), l = args.length)
-    
-    print(f'trainsets:{len(trainset1)},{len(trainset2)},{len(trainset3)},{len(trainset4)},{len(trainset5)}')
-    
-    dataset = {'train1': ConcatDataset((trainset1, trainset2, trainset3)),
-               'train2': ConcatDataset((trainset4, trainset5)),
-                'val':valset}
-    data_loader = {k: DataLoader(v,
-            batch_size=batch_size//4 if k=='train2' else batch_size, 
-            shuffle = k.startswith('train'),
-            num_workers=4, pin_memory=True)
-            for k,v in dataset.items()}
-    model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
-    model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(3, 3), padding=(1, 1), bias=False)
-    model.fc = nn.Linear(2048,ntag)
-    model.to(device)
-    criterion = FocalLoss(weight=weight).cuda()
-    #optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
-    optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
-    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,args.epoch)
-    best_acc = 0
-    start = -1
-    if args.restart:
-        restart = args.restart.split(':')
-        if len(restart) == 1: 
-            start = int(restart[0])
-            checkpoint = save/f'weight_{start}.pt'
-        elif len(restart) == 2:
-            start, checkpoint = int(restart[0]), restart[1]
-        else:
-            exit(1)
-        model.load_state(torch.load(checkpoint, map_location=device))
-        for i in range(start+1): scheduler.step()
-    
-    for e in range(start+1,args.epoch):
-        """
-        if e == stage:
-            dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
-            data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
-            criterion = torch.nn.BCELoss(weight=weight).cuda()
-            print('Start using Mosaic and BCELoss:')
-        """
-        for phase,loader in data_loader.items():
-            if phase.startswith('train'):
-                model.train()
-            else:
-                model.eval()
-            sum_loss = 0
-            sum_tot = 0
-            sum_tp = 0
-            sum_fn = 0
-            sum_fp = 0
-            t0 = time()
-            print(f'fold{ifold}|{e}/{args.epoch}:{phase}')
-            for i,(x,t) in enumerate(loader):
-                x = x.to(device)
-                t = t.to(device)
-                #target_weight = target_weight.to(device)
-                y = model(x)-2
-                loss = criterion(y, t)
-                with torch.set_grad_enabled(phase == 'train'):
-                    loss.backward()
-                    optimizer.step()
-                sum_loss += loss.item()*x.shape[0] 
-                sum_tot += x.shape[0] 
-                if False:
-                    pred = y.argmax(1)
-                    sum_tp += (pred==t).sum().item()
-                    sum_fp += len(t)                    
-                    sum_fn += len(pred)
-                else:
-                    y = torch.sigmoid(y)
-                    top, _ = y.topk(3,1)
-                    thresh = top[:,-1].mean().item()
-                    pred = y > thresh
-                    sum_tp += ((pred==1) & (t==1)).sum().item()
-                    sum_fp += t.sum().item()                    
-                    sum_fn += pred.sum().item()
-                recall = sum_tp/sum_fp*100 if sum_tp else 0
-                prec = sum_tp/sum_fn*100 if sum_tp else 0
-                if i%10==0: 
-                    print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{thresh:1.4f}')
-            print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}')
-        torch.save(model.state_dict(), save/f'weight_{e}.pt')
-        scheduler.step()
+#skf = StratifiedKFold(n_splits=5)
+ids2t, ids2v = train_test_split(ids2,test_size=0.1, random_state=42)
+save = root/f'ResNeSt-v5'
+if not save.exists(): save.mkdir()
+trainset1 = TrainData(df_train, ids1, mosaic=(1,3), l = args.length)
+trainset2 = TrainData(df_train, ids2t, mosaic=(1,1), l = args.length)
+trainset3 = ExampleData(df_example,  mosaic=(3,3), l = args.length)
 
-    break #ifold
+trainset4 = TrainData(df_train, ids2t, mosaic=(1,2), l = args.length*4+1)
+trainset5 = TrainData(df_train, ids3, mosaic=(1,1), l = args.length*4+1)
+valset = TrainData(df_train, ids2v, mosaic=(1,1), l = args.length)
+
+print(f'trainsets:{len(trainset1)},{len(trainset2)},{len(trainset3)},{len(trainset4)},{len(trainset5)}')
+
+dataset = {'train1': ConcatDataset((trainset1, trainset2, trainset3)),
+           'train2': ConcatDataset((trainset4, trainset5)),
+            'val':valset}
+data_loader = {k: DataLoader(v,
+        batch_size=batch_size//4 if k=='train2' else batch_size, 
+        shuffle = k.startswith('train'),
+        num_workers=4, pin_memory=True)
+        for k,v in dataset.items()}
+model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
+model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(3, 3), padding=(1, 1), bias=False)
+model.fc = nn.Linear(2048,ntag)
+model.to(device)
+criterion = FocalLoss(weight=weight).cuda()
+#optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,weight_decay=1e-4)
+optimizer = Ranger(model.parameters(),lr=args.lr,weight_decay=1e-5)
+scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones.split(","), gamma=args.gamma)
+#scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,args.epoch)
+best_acc = 0
+start = -1
+if args.restart:
+    restart = args.restart.split(':')
+    if len(restart) == 1: 
+        start = int(restart[0])
+        checkpoint = save/f'weight_{start}.pt'
+    elif len(restart) == 2:
+        start, checkpoint = int(restart[0]), restart[1]
+    else:
+        exit(1)
+    model.load_state(torch.load(checkpoint, map_location=device))
+    for i in range(start+1): scheduler.step()
+
+for e in range(start+1,args.epoch):
+    """
+    if e == stage:
+        dataset['train'] = TrainData(df_train, train_indices, mosaic=(1,3), l = 821)
+        data_loader['train'] = DataLoader(dataset['train'], batch_size=batch_size, shuffle = True, num_workers=4,pin_memory=True)
+        criterion = torch.nn.BCELoss(weight=weight).cuda()
+        print('Start using Mosaic and BCELoss:')
+    """
+    for phase,loader in data_loader.items():
+        if phase.startswith('train'):
+            model.train()
+        else:
+            model.eval()
+        sum_loss = 0
+        sum_tot = 0
+        sum_tp = 0
+        sum_fn = 0
+        sum_fp = 0
+        t0 = time()
+        print(f'{e}/{args.epoch}:{phase}')
+        for i,(x,t) in enumerate(loader):
+            x = x.to(device)
+            t = t.to(device)
+            #target_weight = target_weight.to(device)
+            y = model(x)-2
+            loss = criterion(y, t)
+            with torch.set_grad_enabled(phase == 'train'):
+                loss.backward()
+                optimizer.step()
+            sum_loss += loss.item()*x.shape[0] 
+            sum_tot += x.shape[0] 
+            if False:
+                pred = y.argmax(1)
+                sum_tp += (pred==t).sum().item()
+                sum_fp += len(t)                    
+                sum_fn += len(pred)
+            else:
+                y = torch.sigmoid(y)
+                top, _ = y.topk(3,1)
+                thresh = top[:,-1].mean().item()
+                pred = y > thresh
+                sum_tp += ((pred==1) & (t==1)).sum().item()
+                sum_fp += t.sum().item()                    
+                sum_fn += pred.sum().item()
+            recall = sum_tp/sum_fp*100 if sum_tp else 0
+            prec = sum_tp/sum_fn*100 if sum_tp else 0
+            if i%10==0: 
+                print(f'{i}\t{(time()-t0)/(i+1):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}\t{thresh:1.4f}')
+        print(f'{phase}({e})\t{(time()-t0):1.2f}s\t{sum_loss/sum_tot:1.4e}\t{recall:1.4f}\t{prec:1.4f}')
+    torch.save(model.state_dict(), save/f'weight_{e}.pt')
+    scheduler.step()
+
+#break #ifold
