@@ -33,11 +33,11 @@ args = parser.parse_args()
 ndim = 128
 batch_size = 32
 root = Path(args.data)
-cols = ['ebird_code', 'filename', 'secondary_labels', 'primary_label']
+cols = ['ebird_code', 'filename', 'duration', 'secondary_labels', 'primary_label']
 df_train1 = pd.read_csv(root/'train.csv', usecols=cols)
 ext_start = len(df_train1)
 df_train2 = pd.read_csv(root/'train_extended.csv', usecols=cols)
-df_train = pd.concat([df_train1,df_train2])
+df_train = pd.concat([df_train1,df_train2], ignore_index=True)
 
 df_test = pd.read_csv(root/'test.csv')
 df_example = pd.read_csv(root/'example_test_audio_summary.csv')
@@ -85,6 +85,9 @@ df_train['tag'] = df_train['ebird_code'].map(code2tag)
 df_train['secondary_tags'] = df_train['secondary_labels'].map(lambda x: [label2tag[l] for l in ast.literal_eval(x) if l in label2tag])
 df_example['tags']=df_example["birds"].map(lambda x: [code2tag[b] for b in x.split(' ') if b in code2tag.keys() ])
 
+ids1 = df_train.index[df_train['duration']<15]
+ids2 = df_train.index[(df_train['duration']>=15) & (df_train['duration']<45)]
+ids3 = df_train.index[df_train['duration']>45]
 ndist = df_train.groupby('tag').count()['filename'].values
 weight = torch.tensor(np.exp(((100/ndist)-1)/10), dtype=torch.float).to(device)
 
@@ -120,17 +123,17 @@ class TrainData(Dataset):
             else:
                 x[cur:cur+l,:] = Sdb
             cur = c 
-            if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
+            #if self.mosaic==(1,1): return x.view((1,-1,ndim)), torch.tensor(row['tag'])
             t[row['tag']] = 1    
             #target_weight[row['tag']] = 3
             t[row['secondary_tags']] = 1
         x = x.view((1,-1,ndim))
-        valid_len = (x>-4).sum().item()/ndim
+        #valid_len = (x>-4).sum().item()/ndim
         return x,t
 
 class ExampleData(Dataset):
-    def __init__(self, mosaic=(3,3), l = args.length):
-        self.df = df_example
+    def __init__(self, df, mosaic=(3,3), l = args.length):
+        self.df = df
         self.mosaic = mosaic
         self.l = l
     def __len__(self):
@@ -159,7 +162,7 @@ class ExampleData(Dataset):
             cur = c 
             t[row['tags']] = 1
         x = x.view((1,-1,ndim))
-        valid_len = (x>-4).sum().item()/ndim
+        #valid_len = (x>-4).sum().item()/ndim
         return x, t
 
 
@@ -198,17 +201,25 @@ class FocalLoss(nn.Module):
             return F_loss
         
 skf = StratifiedKFold(n_splits=5)
-for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, df_train['tag'])):
+for ifold, (ids2t, ids2v) in enumerate(skf.split(ids2, df_train['tag'])):
     save = root/f'ResNeSt{ifold}'
     if not save.exists(): save.mkdir()
-    trainset1 = TrainData(df_train, train_indices)
-    trainset2 = ExampleData()
-    dataset = {'train': ConcatDataset((trainset1, trainset2)),
-                'val':TrainData(df_train, val_indices)}
-    data_loader = {x: DataLoader(dataset[x],
-            batch_size=batch_size, shuffle = (x=='train'),
-            num_workers=4,pin_memory=True)
-            for x in ['train', 'val']}
+    trainset1 = TrainData(df_train, ids1, mosaic=(1,3), l = args.length)
+    trainset2 = TrainData(df_train, ids2t, mosaic=(1,1), l = args.length)
+    trainset3 = ExampleData(df_example,  mosaic=(3,3), l = args.length)
+    
+    trainset4 = TrainData(df_train, ids2t, mosaic=(1,2), l = args.length*4+1)
+    trainset5 = TrainData(df_train, ids3, mosaic=(1,1), l = args.length*4+1)
+    valset = TrainData(df_train, ids2v, mosaic=(1,1), l = args.length)
+    
+    dataset = {'train1': ConcatDataset((trainset1, trainset2, trainset3)),
+               'train2': ConcatDataset((trainset4, trainset5)),
+                'val':valset}
+    data_loader = {k: DataLoader(v,
+            batch_size=batch_size//4 if k=='train2' else batch_size, 
+            shuffle = k.startswith('train'),
+            num_workers=4, pin_memory=True)
+            for k,v in dataset.items()}
     model = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=True)
     model.conv1[0] = nn.Conv2d(1, 32, kernel_size=(5, 5), stride=(3, 3), padding=(1, 1), bias=False)
     model.fc = nn.Linear(2048,ntag)
@@ -240,8 +251,8 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             criterion = torch.nn.BCELoss(weight=weight).cuda()
             print('Start using Mosaic and BCELoss:')
         """
-        for phase in ['train','val']:
-            if phase == 'train':
+        for phase,loader in data_loader.items():
+            if phase.startswith('train'):
                 model.train()
             else:
                 model.eval()
@@ -252,7 +263,7 @@ for ifold, (train_indices, val_indices) in enumerate(skf.split(df_train.index, d
             sum_fp = 0
             t0 = time()
             print(f'fold{ifold}|{e}/{args.epoch}:{phase}')
-            for i,(x,t) in enumerate(data_loader[phase]):
+            for i,(x,t) in enumerate(loader):
                 x = x.to(device)
                 t = t.to(device)
                 #target_weight = target_weight.to(device)
